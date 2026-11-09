@@ -4,13 +4,29 @@ import {extname,resolve,sep} from 'node:path';
 import {Readable} from 'node:stream';
 import {sqlite,seedDemo} from './local-db.mjs';
 import {handleApi} from '../backend/src/api.js';
-import {passwordHash} from '../backend/src/security.js';
+import {matchesPassword,passwordHash} from '../backend/src/security.js';
+import {localMedia} from './local-media.mjs';
 
-const root=resolve('frontend/dist'),origin='http://127.0.0.1:5175';
+const previewBuild=process.env.HYETAEKSO_PREVIEW_BUILD;
+const port=previewBuild?4174:5175;
+const root=resolve(previewBuild||'frontend/dist'),origin='http://127.0.0.1:'+port;
 const shell=await readFile(resolve(root,'200.html'));
-const db=await sqlite(':memory:');
+const db=await sqlite(previewBuild?'.local/admin-preview.sqlite':':memory:');
+const MEDIA=await localMedia(previewBuild?'.local/admin-preview-media':undefined);
 await seedDemo(db);
-if(process.env.BROWSER_TEST_PASSWORD)await db.run('INSERT INTO accounts(id,username,password_hash) VALUES(?,?,?)',['browser-admin','browser-admin',await passwordHash(process.env.BROWSER_TEST_PASSWORD)]);
+const username=previewBuild?'admin':'browser-admin';
+const password=previewBuild?process.env.HYETAEKSO_PREVIEW_PASSWORD:process.env.BROWSER_TEST_PASSWORD;
+if(password) {
+  await db.transaction(async()=>{
+    const [account]=await db.all('SELECT id,password_hash FROM accounts WHERE username=?',[username]);
+    if(!account) {
+      await db.run('INSERT INTO accounts(id,username,password_hash) VALUES(?,?,?)',[crypto.randomUUID(),username,await passwordHash(password)]);
+    } else if(!await matchesPassword(password,account.password_hash)) {
+      await db.run('UPDATE accounts SET password_hash=? WHERE id=?',[await passwordHash(password),account.id]);
+      await db.run('DELETE FROM sessions WHERE account_id=?',[account.id]);
+    }
+  });
+}
 const types={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.svg':'image/svg+xml','.png':'image/png','.txt':'text/plain; charset=utf-8'};
 let queue=Promise.resolve();
 const server=createServer(async(incoming,outgoing)=>{
@@ -21,7 +37,7 @@ const server=createServer(async(incoming,outgoing)=>{
         try {
           const options={method:incoming.method,headers:incoming.headers};
           if(!['GET','HEAD'].includes(options.method))Object.assign(options,{body:Readable.toWeb(incoming),duplex:'half'});
-          const response=await handleApi(new Request(url,options),{APP_ORIGIN:origin,LOCAL_DEV:true},db);
+          const response=await handleApi(new Request(url,options),{APP_ORIGIN:origin,LOCAL_DEV:true,MEDIA},db);
           outgoing.writeHead(response.status,Object.fromEntries(response.headers));
           outgoing.end(Buffer.from(await response.arrayBuffer()));
         } catch {outgoing.writeHead(500).end();}
@@ -37,5 +53,5 @@ const server=createServer(async(incoming,outgoing)=>{
     outgoing.writeHead(200,{'Content-Type':types[extname(target)]??'application/octet-stream'}).end(file);
   } catch {outgoing.writeHead(500).end();}
 });
-server.listen(5175,'127.0.0.1');
+server.listen(port,'127.0.0.1',()=>{if(previewBuild)console.log('Admin preview: '+origin+'/admin');});
 for(const signal of ['SIGTERM','SIGINT'])process.once(signal,()=>server.close(()=>db.close()));

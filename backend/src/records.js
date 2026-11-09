@@ -1,5 +1,5 @@
 import { officialEndpoints, officialEndpoint } from './carrier-support.js';
-import { ApiError, invalid, text, money, choice, mediaUrl } from './security.js';
+import { ApiError, invalid, text, money, choice, mediaUrl, pictureUrl } from './security.js';
 import { joins, storageKey, offer, supportSignature } from './catalog.js';
 
 const string=(label,max,required=true)=>value=>text(value??'',label,max,required);
@@ -11,14 +11,14 @@ export const definitions={
   manufacturers:{name:string('제조사',100)},
   carriers:{name:string('통신사',100)},
   categories:{name:string('카테고리',100)},
-  products:{manufacturer_id:string('제조사',64),name:string('모델명',160),description:string('설명',10000,false),image:url,status:enumOf('공개 상태','draft','published'),sort_order:number('순서',0,99999),sample:flag,closed:flag},
+  products:{manufacturer_id:string('제조사',64),name:string('모델명',160),description:string('설명',10000,false),image:pictureUrl,status:enumOf('공개 상태','draft','published'),sort_order:number('순서',0,99999),sample:flag,closed:flag},
   capacities:{product_id:string('상품',64),name:value=>storageKey(text(value,'용량',40)),price:number('출고가',1,100000000)},
-  colors:{product_id:string('상품',64),name:string('색상',50),image:url},
+  colors:{product_id:string('상품',64),name:string('색상',50),image:pictureUrl},
   plans:{carrier_id:string('통신사',64),name:string('요금제',160),fee:number('월정액'),enabled:flag,source_key:string('외부 요금제 코드',160,false)},
   offers:{capacity_id:string('용량',64),plan_id:string('요금제',64),join_type:enumOf('가입 유형',...joins),extra:number('추가 지원금'),source_key:string('외부 단말 매핑',160,false)},
   supports:{offer_id:string('상품 조건',64),amount:number('지원금'),source:string('출처',200),expires_at:number('만료 시각',1,9007199254740991)},
   banners:{title:string('배너 제목',160),body:string('설명',1000,false),alt:string('대체 문구',300,false),image:url,mobile:url,link:url,kind:enumOf('파일 종류','image','video'),fit:enumOf('크기 맞춤','cover','contain','fill'),intro:flag,enabled:flag,sort_order:number('순서',0,99999)},
-  content:{kind:enumOf('콘텐츠 종류','notice','faq','review','qna','rental','page'),category:string('분류',60,false),title:string('제목',160),body:string('본문',50000),image:url,status:enumOf('공개 상태','draft','published')},
+  content:{kind:enumOf('콘텐츠 종류','notice','faq','review','qna','rental','page'),category:string('분류',60,false),title:string('제목',160),body:string('본문',50000),image:pictureUrl,status:enumOf('공개 상태','draft','published')},
 };
 export const tables=Object.keys(definitions);
 export const statuses=['접수완료','상담중','상담완료','취소'];
@@ -68,7 +68,15 @@ export async function saveRecord(db,table,input,id) {
   id=id?text(id,'관리 코드',64):crypto.randomUUID();
   if (!/^[\w-]+$/.test(id)) throw invalid('관리 코드를 확인해 주세요.');
   const fields=Object.fromEntries(Object.entries(definitions[table]).map(([key,parse])=>[key,parse(input[key])]));
-  if (table==='banners' && fields.enabled && !fields.image) throw invalid('배너 파일을 선택해 주세요.');
+  if (table==='banners') {
+    if (fields.enabled && !fields.image) throw invalid('배너 파일을 선택해 주세요.');
+    if (fields.kind==='image') {
+      pictureUrl(fields.image);
+      pictureUrl(fields.mobile);
+    } else if (/\.(jpg|jpeg|png|webp|gif|svg)(?:[?#]|$)/i.test(fields.image)) {
+      throw invalid('배너 영상 파일을 선택해 주세요.');
+    }
+  }
   if (table==='offers') {
     const [cap]=await db.all('SELECT price FROM capacities WHERE id=?',[fields.capacity_id]);
     const [plan]=await db.all('SELECT enabled FROM plans WHERE id=?',[fields.plan_id]);

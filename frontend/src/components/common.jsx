@@ -4,15 +4,22 @@ import { Smartphone, Building2, Droplet, House, LampFloor, CarFront, BriefcaseBu
 
 const icons={Smartphone,Building2,Droplet,House,LampFloor,CarFront,BriefcaseBusiness,Handshake,Headset,ShieldCheck,Users,BadgePercent,Heart,Wifi,Tv,Refrigerator,WashingMachine,AirVent,Wind,Armchair,CookingPot,Truck,Sparkles,PanelsTopLeft,Store,Car,Zap,Phone,Printer,ChartNoAxesCombined,GraduationCap,HeartPulse,Baby,HeartHandshake,ClipboardList,Check,ArrowRight};
 export function Icon({name,size=28}) { const Component=icons[name]||Check;return <Component size={size} strokeWidth={1.7} aria-hidden="true"/>; }
-export function Art({tile=0,className=''}) {
-  return <div aria-hidden="true" className={'service-art '+className} style={{backgroundPosition:(tile%3)*50+'% '+Math.floor(tile/3)*50+'%'}}/>;
+export function Art({tile=0,className='',src,mobile}) {
+  return <div aria-hidden="true" className={'service-art '+(src?'service-art-custom ':'')+className} style={{backgroundPosition:(tile%3)*50+'% '+Math.floor(tile/3)*50+'%'}}>
+    {(src||mobile)&&<picture className={src?undefined:'art-mobile-only'}>
+      {mobile&&<source media="(max-width:600px)" srcSet={mobile}/>}
+      <img src={src||undefined} alt=""/>
+    </picture>}
+  </div>;
 }
-export function Hero({data,children,home=false}) {
+export function Hero({data,children,home=false,image,mobile}) {
   return <section className={'hero '+(data.dark?'hero-dark ':'')+(home?'hero-home':'')}>
-    {home?<img className="home-scene" src="/media/showroom.png" alt=""/>:<Art tile={data.tile}/>}
+    {home?<picture className="home-scene">{mobile&&<source media="(max-width:600px)" srcSet={mobile}/>}<img src={image||'/media/showroom.png'} alt=""/></picture>:<Art tile={data.tile} src={image} mobile={mobile}/>}
     <div className="hero-shade"/><div className="hero-inner wrap">
-      <p className="eyebrow">{data.kicker}</p><h1>{data.title[0]}<br/><em>{data.title[1]}</em></h1><p className="hero-description">{data.description}</p>
-      {data.features&&<div className="hero-features">{data.features.map((label,i)=><span key={label}><Icon name={['ShieldCheck','Users','ClipboardList','Headset'][i]} size={21}/>{label}</span>)}</div>}
+      {data.kicker&&<p className="eyebrow">{data.kicker}</p>}
+      <h1>{data.title[0]}{data.title[1]&&<>{data.title[0]&&<br/>}<em>{data.title[1]}</em></>}</h1>
+      {data.description&&<p className="hero-description preserve">{data.description}</p>}
+      {data.features?.length>0&&<div className="hero-features">{data.features.map((label,i)=><span key={i}><Icon name={['ShieldCheck','Users','ClipboardList','Headset'][i]} size={21}/>{label}</span>)}</div>}
       {children}
     </div>
   </section>;

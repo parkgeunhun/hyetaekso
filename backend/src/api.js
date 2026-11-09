@@ -2,6 +2,8 @@ import { serveMedia } from './media-response.js';
 import { ApiError, invalid, digest, token, matchesPassword, cookie, accountSession, requireOrigin, rateLimit, readJson, text, choice } from './security.js';
 import { listProducts, product, quote } from './catalog.js';
 import { definitions, saveRecord, settings, saveSettings } from './records.js';
+import { appearance, saveAppearance, resetAppearance } from './appearance.js';
+import { registerPhone } from './phone-registration.js';
 import { lookupLead, submitLead, updateLead } from './leads.js';
 import { syncSupports } from './sync.js';
 
@@ -59,7 +61,7 @@ export async function handleApi(request,env,db) {
       if(!response)throw notFound();
       return response;
     }
-    if(area==='site'&&method==='GET') return json({settings:await settings(db),banners:await db.all('SELECT * FROM banners WHERE enabled=1 ORDER BY sort_order,id LIMIT 12')});
+    if(area==='site'&&method==='GET') return json({settings:await settings(db),appearance:await appearance(db),banners:await db.all('SELECT * FROM banners WHERE enabled=1 ORDER BY sort_order,id LIMIT 12')});
     if(area==='products'&&method==='GET') {
       if(action) return json(await product(db,action));
       return json({items:await listProducts(db),categories:await db.all('SELECT * FROM categories ORDER BY name'),links:await db.all(`SELECT pc.* FROM product_categories pc JOIN products p ON p.id=pc.product_id WHERE p.status='published'`)});
@@ -98,6 +100,16 @@ export async function handleApi(request,env,db) {
     if(action==='session'&&method==='GET')return json({username:session.username});
     if(action==='dashboard'&&method==='GET')return json(await dashboard(db));
     if(action==='media'&&method==='POST')return await media(request,env);
+    if(action==='appearance') {
+      if(method==='GET'&&!id) return json(await appearance(db));
+      if(method==='PUT'&&id) {
+        const input=await body(request);
+        return json(await db.transaction(()=>saveAppearance(db,id,input)));
+      }
+      if(method==='DELETE'&&id) return json(await resetAppearance(db,id));
+      throw notFound();
+    }
+    if(action==='phone-registration'&&method==='POST'&&!id) return json(await registerPhone(db,await body(request)),201);
     if(action==='settings') {
       if(method==='GET')return json(await settings(db));
       if(method==='PUT')return json(await db.transaction(async()=>saveSettings(db,await body(request))));
@@ -115,6 +127,7 @@ export async function handleApi(request,env,db) {
         const page=Math.max(0,Math.min(100000,Number.parseInt(searchParams.get('page')??'0',10)||0));
         const clauses=[],args=[];
         if(state){clauses.push('status=?');args.push(state);}
+        if(searchParams.get('overdue')==='1') {clauses.push('created_at<?');args.push(Date.now()-86400000);}
         if(query){clauses.push('(receipt LIKE ? OR name LIKE ? OR phone LIKE ?)');args.push(...Array(3).fill('%'+query+'%'));}
         const where=clauses.length?' WHERE '+clauses.join(' AND '):'';
         // mysql2 sends JS numbers as DOUBLE in prepared statements; MySQL 8.4

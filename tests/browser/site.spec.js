@@ -73,3 +73,45 @@ test('administrator can sign in, change the company, and sign out',async({page})
   await page.getByRole('button',{name:'로그아웃'}).click();
   await expect(page.getByRole('heading',{name:'관리자 로그인'})).toBeVisible();
 });
+
+test('administrator changes the public banner and registers a phone with pricing',async({page})=>{
+  await page.goto('/admin/appearance');
+  await page.getByLabel('아이디').fill('browser-admin');
+  await page.getByLabel('비밀번호').fill(process.env.BROWSER_TEST_PASSWORD);
+  await page.getByRole('button',{name:'로그인',exact:true}).click();
+  await page.getByLabel('제목 첫 줄').fill('관리자에서 바꾼 홈 배너');
+  const uploaded=page.waitForResponse(response=>new URL(response.url()).pathname==='/api/admin/media'&&response.request().method()==='POST');
+  await page.getByLabel('PC 사진',{exact:true}).setInputFiles({
+    name:'banner.png',mimeType:'image/png',
+    buffer:Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+X2ZsAAAAASUVORK5CYII=','base64')
+  });
+  const upload=await uploaded;
+  expect(upload.status()).toBe(201);
+  const {url}=await upload.json();
+  await expect(page.getByRole('img',{name:'PC 사진 미리보기'})).toHaveAttribute('src',url);
+  await page.getByRole('button',{name:'화면 설정 저장'}).click();
+  await expect(page.getByText('공개 화면에 반영했습니다.')).toBeVisible();
+  await page.goto('/');
+  await expect(page.getByRole('heading',{level:1,name:/관리자에서 바꾼 홈 배너/})).toBeVisible();
+  await expect(page.locator('.hero-home img')).toHaveAttribute('src',url);
+  expect((await page.request.get(url)).headers()['content-type']).toBe('image/png');
+
+  await page.goto('/admin/phone-registration');
+  await page.getByLabel('제조사').selectOption('samsung');
+  await page.getByLabel('모델명').fill('등록 확인 휴대폰');
+  await page.getByLabel('공개 상태').selectOption('published');
+  await page.getByRole('button',{name:'용량 추가',exact:true}).click();
+  await page.getByLabel('용량',{exact:true}).fill('256GB');
+  await page.getByRole('spinbutton',{name:'출고가',exact:true}).fill('1200000');
+  await page.getByRole('button',{name:'색상 추가',exact:true}).click();
+  await page.getByLabel('색상',{exact:true}).fill('블랙');
+  await page.getByRole('button',{name:'가격 조건 추가',exact:true}).click();
+  await page.getByLabel('연결할 용량').selectOption({index:1});
+  await page.getByLabel('요금제').selectOption('skt-5g');
+  await page.getByLabel('추가 지원금').fill('150000');
+  await page.getByRole('button',{name:'휴대폰 저장',exact:true}).click();
+  await expect(page.getByRole('heading',{name:'등록 확인 휴대폰 등록 완료'})).toBeVisible();
+  await page.getByRole('link',{name:'공개 상품 보기'}).click();
+  await expect(page.getByRole('heading',{name:'등록 확인 휴대폰',exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:'256GB',exact:true})).toBeVisible();
+});

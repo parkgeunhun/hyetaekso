@@ -50,6 +50,15 @@ async function scenario(db) {
   const site=(await request('/site')).data;
   assert.equal(site.settings.hours,'평일 10:00~18:00');
   assert.equal(site.banners[0].image,'/media/showroom.png');
+  assert.equal((await request('/admin/appearance/unknown','PUT',{image:'/media/showroom.png'})).status,404);
+  assert.equal((await request('/admin/appearance/home-hero','PUT',{image:'/media/movie.mp4'})).status,400);
+  const appearance=await request('/admin/appearance/home-hero','PUT',{image:'/media/showroom.png',mobile:'/media/services.png',headline:'관리자 편집 배너'});
+  assert.equal(appearance.status,200);
+  const publicAppearance=(await request('/site')).data.appearance['home-hero'];
+  assert.equal(publicAppearance.headline,'관리자 편집 배너');
+  assert.equal(publicAppearance.mobile,'/media/services.png');
+  assert.equal((await request('/admin/appearance/home-hero','DELETE')).status,200);
+  assert.equal((await request('/site')).data.appearance['home-hero'],undefined);
   const current=(await request('/products/'+product.id)).data.offers[0];
   const selection={productId:product.id,offerId:offer.id,version:current.version,mode:'support',months:24};
   assert.equal((await request('/quote','POST',selection)).data.monthly,90252);
@@ -89,6 +98,26 @@ async function scenario(db) {
   assert.equal((await request('/admin/manufacturers')).data[0].name,'일괄 변경 제조사');
   assert.equal((await request('/admin/products/'+product.id,'DELETE')).status,200);
   assert.equal((await request('/products/'+product.id)).status,404);
+  const category=await saveRecord(db,'categories',{name:'일괄 등록 검증'});
+  const registration={
+    requestKey:crypto.randomUUID(),
+    product:{manufacturer_id:manufacturer.id,name:'일괄 등록 휴대폰',status:'published',categories:[category.id]},
+    capacities:[{key:'256',name:'256 GB',price:1200000}],
+    colors:[{name:'검증 색상',image:'/media/phone-0.svg'}],
+    offers:[{capacityKey:'256',plan_id:plan.id,join_type:'기기변경',extra:150000}]
+  };
+  const invalidRegistration={...registration,offers:[{...registration.offers[0],capacityKey:'missing'}]};
+  assert.equal((await request('/admin/phone-registration','POST',invalidRegistration)).status,400);
+  assert.equal((await request('/products/'+registration.requestKey)).status,404);
+  const registered=await request('/admin/phone-registration','POST',registration);
+  assert.equal(registered.status,201);
+  assert.equal((await request('/admin/phone-registration','POST',registration)).status,409);
+  const savedPhone=(await request('/products/'+registered.data.id)).data;
+  assert.equal(savedPhone.offers[0].storage,'256GB');
+  assert.equal(savedPhone.offers[0].price,1200000);
+  assert.equal(savedPhone.colors[0].name,'검증 색상');
+  const savedAdminPhone=(await request('/admin/products')).data.find(item=>item.id===registered.data.id);
+  assert.deepEqual(savedAdminPhone.categories,[category.id]);
   await request('/admin/logout','POST');
   assert.equal((await request('/admin/leads')).status,401);
 }

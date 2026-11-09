@@ -3,14 +3,27 @@ import { Link,NavLink,Outlet,useLocation } from 'react-router-dom';
 import { menu } from '../pages/content.js';
 import { useResource } from '../hooks/data.js';
 import { Icon } from '../components/common.jsx';
+import { defaultBrandImage } from '../../../shared/site-appearance.js';
 
-const SiteContext=createContext({settings:{company:'혜택소'},banners:[]});
+const defaultSite={settings:{company:'혜택소'},banners:[],appearance:{}};
+const SiteContext=createContext(defaultSite);
 export const useSite=()=>useContext(SiteContext);
-export function Logo() {return <Link className="brand" to="/" aria-label="혜택소 홈"><img src="/media/logo.svg" alt="" width="43" height="43"/><span>혜택소</span></Link>;}
+export function Logo({image}={}) {
+  const {appearance}=useSite();
+  return <Link className="brand" to="/" aria-label="혜택소 홈"><img src={image||appearance?.logo?.image||defaultBrandImage} alt="" width="43" height="43"/><span>혜택소</span></Link>;
+}
 export default function SiteLayout() {
-  const site=useResource('/site'), config=site.data??{settings:{company:'혜택소'},banners:[]};
+  const site=useResource('/site'), config=site.data??defaultSite;
   const location=useLocation(),[menuOpen,setMenuOpen]=useState(false);
   const {settings}=config;
+  const favicon=config.appearance?.favicon?.image;
+  useEffect(()=>{
+    const icon=document.querySelector('link[rel="icon"]');
+    if(!icon)return;
+    icon.href=favicon||defaultBrandImage;
+    if(favicon)icon.removeAttribute('type');
+    else icon.type='image/svg+xml';
+  },[favicon]);
   useEffect(()=>{setMenuOpen(false);window.scrollTo(0,0);},[location.pathname]);
   useEffect(()=>{
     const key=location.pathname.split('/')[1];

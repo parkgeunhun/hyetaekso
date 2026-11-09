@@ -6,25 +6,27 @@ import { Logo } from '../layouts/SiteLayout.jsx';
 import { Icon,Status,Modal } from '../components/common.jsx';
 import { entities,leadStates } from './fields.js';
 import { Records,SiteSettings,Excel } from './Editors.jsx';
+import AppearanceEditor from './AppearanceEditor.jsx';
+import PhoneRegistration from './PhoneRegistration.jsx';
 import './admin.css';
 
-const groups=[['상품 관리',['products','manufacturers','categories','capacities','colors']],['가격과 지원금',['carriers','plans','offers','supports','sync','excel']],['운영',['leads','banners','content','settings']]];
-const titles={sync:'지원금 갱신',excel:'엑셀 일괄 작업',leads:'상담 접수',settings:'사이트 설정'};
+const groups=[['상품 관리',['phone-registration','products','manufacturers','categories','capacities','colors']],['가격과 지원금',['carriers','plans','offers','supports','sync','excel']],['화면 관리',['appearance','banners','content','settings']],['상담 관리',['leads']]];
+const titles={sync:'지원금 갱신',excel:'엑셀 일괄 작업',leads:'상담 접수',settings:'사이트 설정',appearance:'사이트 이미지·배너 편집','phone-registration':'휴대폰 등록'};
 const time=value=>value?new Date(Number(value)).toLocaleString('ko-KR'):'기록 없음';
-function Login({onLogin}) {
+function Login({onLogin,logo}) {
   const [error,setError]=useState(''),[busy,setBusy]=useState(false);
   async function submit(event) {
     event.preventDefault();setBusy(true);setError('');
     try {onLogin(await api('/admin/login',{method:'POST',body:Object.fromEntries(new FormData(event.currentTarget))}));}
     catch(error){setError(error.message);}finally{setBusy(false);}
   }
-  return <main className="login-page"><form className="form-panel" onSubmit={submit}><Logo/><h1>관리자 로그인</h1><p>혜택소 운영 계정으로 로그인하세요.</p><label>아이디<input name="username" autoComplete="username" required/></label><label>비밀번호<input name="password" type="password" autoComplete="current-password" required/></label>{error&&<p role="alert" className="message error">{error}</p>}<button className="btn primary" disabled={busy}>{busy?'로그인 중…':'로그인'}</button></form></main>;
+  return <main className="login-page"><form className="form-panel" onSubmit={submit}><Logo image={logo}/><h1>관리자 로그인</h1><p>혜택소 운영 계정으로 로그인하세요.</p><label>아이디<input name="username" autoComplete="username" required/></label><label>비밀번호<input name="password" type="password" autoComplete="current-password" required/></label>{error&&<p role="alert" className="message error">{error}</p>}<button className="btn primary" disabled={busy}>{busy?'로그인 중…':'로그인'}</button></form></main>;
 }
 function Dashboard() {
   const resource=useResource('/admin/dashboard'),data=resource.data;
   const count=status=>data?.leads.find(row=>row.status===status)?.count??0;
-  return <><div className="admin-head"><div><h1>대시보드</h1><p>상담 접수, 공개 상품과 지원금 상태를 확인하세요.</p></div><Link className="btn" to="/admin/products">상품 관리</Link></div><Status resource={resource}/>
-    {data&&<><div className="admin-metrics">{[['새 상담',count('접수완료'),'/admin/leads?status=접수완료','ClipboardList'],['상담 중',count('상담중'),'/admin/leads?status=상담중','Headset'],['상담 완료',count('상담완료'),'/admin/leads?status=상담완료','Check'],['공개 휴대폰',data.products,'/admin/products','Smartphone'],['24시간 지난 새 상담',data.overdue,'/admin/leads?status=접수완료','Phone'],['최근 갱신',data.sync?.status??'기록 없음','/admin/sync','BadgePercent']].map(([label,value,url,icon])=><Link to={url} key={label}><span className="card-icon"><Icon name={icon} size={22}/></span><strong>{value}</strong><span>{label}</span></Link>)}</div>
+  return <><div className="admin-head"><div><h1>대시보드</h1><p>상담 접수, 공개 상품과 지원금 상태를 확인하세요.</p></div><div className="actions"><Link className="btn primary" to="/admin/phone-registration">휴대폰 등록</Link><Link className="btn" to="/admin/appearance">이미지·배너 편집</Link></div></div><Status resource={resource}/>
+    {data&&<><div className="admin-metrics">{[['새 상담',count('접수완료'),'/admin/leads?status=접수완료','ClipboardList'],['상담 중',count('상담중'),'/admin/leads?status=상담중','Headset'],['상담 완료',count('상담완료'),'/admin/leads?status=상담완료','Check'],['공개 휴대폰',data.products,'/admin/products','Smartphone'],['24시간 지난 새 상담',data.overdue,'/admin/leads?status=접수완료&overdue=1','Phone'],['최근 갱신',data.sync?.status??'기록 없음','/admin/sync','BadgePercent']].map(([label,value,url,icon])=><Link to={url} key={label}><span className="card-icon"><Icon name={icon} size={22}/></span><strong>{value}</strong><span>{label}</span></Link>)}</div>
     <div className="admin-panels"><section className="admin-panel"><h2>오늘 확인할 일</h2><p>처리 대기 상담 {count('접수완료')}건</p><Link to="/admin/leads">상담 목록 보기 ›</Link></section><section className="admin-panel"><h2>지원금 갱신</h2><p>{data.sync?.message??'지원금 갱신 기록이 없습니다.'}</p><Link to="/admin/sync">실행 기록 보기 ›</Link></section></div></>}
   </>;
 }
@@ -54,7 +56,7 @@ function Sync() {
   }
   return <><div className="admin-head"><h1>지원금 갱신</h1><button className="btn primary" disabled={busy} onClick={run}>{busy?'갱신 중…':'지금 갱신'}</button></div><section className="admin-panel"><p>예약 실행은 한국시간 오전 9시입니다. 수동 지원금은 유효한 동안 우선 적용합니다.</p><details><summary>공개 조회 연결 방법</summary><p>요금제에 외부 요금제 코드를 먼저 입력하세요. 가격 조건의 외부 키는 SKT의 경우 skt:모델코드:5G, 스마트초이스의 경우 smartchoice:모델코드:5G:삼성전자 형식입니다. 금액과 요금제가 맞지 않으면 반영하지 않습니다.</p></details>{message&&<p role="status">{message}</p>}<Status resource={resource}/><ul className="sync-list">{resource.data?.map(row=><li key={row.id}><strong>{row.status}</strong> {time(row.created_at)}<p>{row.message}</p></li>)}</ul></section></>;
 }
-function Workspace({user,logout}) {
+function Workspace({user,logout,site}) {
   const {section='dashboard'}=useParams(),[refs,setRefs]=useState({}),[error,setError]=useState(''),[nav,setNav]=useState(false);
   async function refresh() {
     try {
@@ -65,22 +67,31 @@ function Workspace({user,logout}) {
   }
   useEffect(()=>{refresh();},[]);
   useEffect(()=>{setNav(false);window.scrollTo(0,0);},[section]);
-  return <div className="admin-shell"><aside className={'admin-sidebar '+(nav?'open':'')}><Logo/><span className="admin-sidebar-label">관리자</span><nav aria-label="관리 메뉴"><NavLink end to="/admin">대시보드</NavLink>
+  return <div className="admin-shell"><aside className={'admin-sidebar '+(nav?'open':'')}><Logo image={site.data?.appearance?.logo?.image}/><span className="admin-sidebar-label">관리자</span><nav aria-label="관리 메뉴"><NavLink end to="/admin">대시보드</NavLink>
     {groups.map(([label,keys])=><details key={label} open={keys.includes(section)||undefined}><summary>{label}</summary>{keys.map(key=><NavLink key={key} to={'/admin/'+key}>{entities[key]?.title||titles[key]}</NavLink>)}</details>)}</nav><button className="btn" onClick={logout}>로그아웃</button></aside>
     <main className="admin-main"><header className="admin-toolbar"><button className="btn admin-menu-toggle" aria-expanded={nav} onClick={()=>setNav(!nav)}>관리 메뉴 ☰</button><span>혜택소 관리자 › {entities[section]?.title||titles[section]||'대시보드'}</span><span>{user.username}</span></header>
       <div className="admin-work">{error&&<p role="alert" className="message error">{error} <button className="btn" onClick={refresh}>다시 시도</button></p>}
-      {section==='dashboard'?<Dashboard/>:section==='settings'?<SiteSettings/>:section==='excel'?<Excel/>:section==='leads'?<Leads/>:section==='sync'?<Sync/>:Object.hasOwn(entities,section)?<Records key={section} entity={section} refs={refs} onChanged={refresh}/>:<h1>관리 메뉴를 찾을 수 없습니다.</h1>}</div>
+      {section==='dashboard'&&<Dashboard/>}
+      {section==='appearance'&&<AppearanceEditor onChanged={site.retry}/>}
+      {section==='phone-registration'&&<PhoneRegistration refs={refs} onChanged={refresh}/>}
+      {section==='settings'&&<SiteSettings/>}
+      {section==='excel'&&<Excel/>}
+      {section==='leads'&&<Leads/>}
+      {section==='sync'&&<Sync/>}
+      {Object.hasOwn(entities,section)&&<Records key={section} entity={section} refs={refs} onChanged={refresh}/>}
+      {section!=='dashboard'&&!Object.hasOwn(titles,section)&&!Object.hasOwn(entities,section)&&<h1>관리 메뉴를 찾을 수 없습니다.</h1>}</div>
     </main></div>;
 }
 export default function Admin() {
+  const site=useResource('/site');
   const resource=useResource('/admin/session'),[user,setUser]=useState(null),[loggedOut,setLoggedOut]=useState(false),[error,setError]=useState('');
   useEffect(()=>{document.title='관리자 | 혜택소';},[]);
   const account=loggedOut?null:user||resource.data;
   if(resource.loading&&!account)return <main className="login-page"><p>관리자 세션 확인 중…</p></main>;
   if(!account) {
     if(resource.error&&resource.error.status!==401&&!loggedOut)return <main className="login-page"><Status resource={resource}/></main>;
-    return <Login onLogin={account=>{setUser(account);setLoggedOut(false);}}/>;
+    return <Login logo={site.data?.appearance?.logo?.image} onLogin={account=>{setUser(account);setLoggedOut(false);}}/>;
   }
   async function logout(){try{await api('/admin/logout',{method:'POST'});setUser(null);setLoggedOut(true);}catch(error){setError(error.message);}}
-  return <>{error&&<p role="alert" className="message error">{error}</p>}<Workspace user={account} logout={logout}/></>;
+  return <>{error&&<p role="alert" className="message error">{error}</p>}<Workspace user={account} logout={logout} site={site}/></>;
 }

@@ -30,6 +30,11 @@ export function mediaUrl(value,external=true) {
   }
   throw invalid('HTTPS 주소나 사이트 내부 경로를 입력해 주세요.');
 }
+export function pictureUrl(value) {
+  const url=mediaUrl(value);
+  if (/\.(mp4|webm)(?:[?#]|$)/i.test(url)) throw invalid('이미지 파일을 선택해 주세요.');
+  return url;
+}
 export async function passwordHash(password,salt=randomBytes(16).toString('hex')) {
   const key=await derive(password,salt,64,{N:32768,r:8,p:1,maxmem:64*1024*1024});
   return salt+':'+Buffer.from(key).toString('hex');
