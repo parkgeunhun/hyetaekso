@@ -1,0 +1,78 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import ExcelJS from 'exceljs';
+import { sqlite,applySchema } from '../scripts/local-db.mjs';
+import { connectMysql } from '../backend/src/db.js';
+import { handleApi } from '../backend/src/api.js';
+import { passwordHash } from '../backend/src/security.js';
+import { saveRecord,saveSettings } from '../backend/src/records.js';
+
+const origin='http://127.0.0.1:5173',env={APP_ORIGIN:origin,LOCAL_DEV:true};
+async function scenario(db) {
+  let session='';
+  const request=async(path,method='GET',body,customOrigin=origin)=>{
+    const response=await handleApi(new Request(origin+'/api'+path,{method,headers:{origin:customOrigin,cookie:session,...(body?{'content-type':'application/json'}:{})},body:body?JSON.stringify(body):undefined}),env,db);
+    const type=response.headers.get('content-type');
+    return {status:response.status,response,data:type?.includes('application/json')?await response.json():await response.arrayBuffer()};
+  };
+  assert.equal((await request('/admin/products')).status,401);
+  const user='test-'+crypto.randomUUID().slice(0,8),password=crypto.randomUUID();
+  await db.run('INSERT INTO accounts(id,username,password_hash) VALUES(?,?,?)',[crypto.randomUUID(),user,await passwordHash(password)]);
+  assert.equal((await request('/admin/login','POST',{username:user,password},'https://wrong.test')).status,403);
+  assert.equal((await request('/admin/login','POST',{username:user,password:'wrong'})).status,401);
+  const login=await request('/admin/login','POST',{username:user,password});
+  assert.equal(login.status,200);
+  const cookie=login.response.headers.get('set-cookie');
+  assert.match(cookie,/HttpOnly/);assert.match(cookie,/SameSite=Strict/);session=cookie.split(';')[0];
+  assert.equal((await request('/admin/session')).data.username,user);
+  const manufacturer=(await request('/admin/manufacturers','POST',{name:'검증 제조사'})).data;
+  const carrier=(await request('/admin/carriers','POST',{name:'검증 통신사'})).data;
+  const product=(await request('/admin/products','POST',{manufacturer_id:manufacturer.id,name:'검증 휴대폰',status:'published'})).data;
+  const updated=await request('/admin/products/'+product.id,'PUT',{...product,name:'검증 휴대폰 수정'});
+  assert.equal(updated.status,200);
+  assert.equal((await request('/products')).data.items[0].name,'검증 휴대폰 수정');
+  const cap=await saveRecord(db,'capacities',{product_id:product.id,name:'256 GB',price:1000001});
+  const plan=await saveRecord(db,'plans',{carrier_id:carrier.id,name:'검증 요금제',fee:69001,enabled:1});
+  const offer=await saveRecord(db,'offers',{capacity_id:cap.id,plan_id:plan.id,join_type:'번호이동',extra:180000});
+  await saveRecord(db,'supports',{offer_id:offer.id,source:'검증',amount:310000,expires_at:Date.now()+86400000});
+  await saveSettings(db,{intake:1,privacy:'시험 안내',consent:'시험 동의'});
+  const current=(await request('/products/'+product.id)).data.offers[0];
+  const selection={productId:product.id,offerId:offer.id,version:current.version,mode:'support',months:24};
+  assert.equal((await request('/quote','POST',selection)).data.monthly,90252);
+  assert.equal((await request('/quote','POST',{...selection,mode:'contract',months:30})).data.monthly,79085);
+  assert.equal((await request('/quote','POST',{...selection,version:'stale'})).status,409);
+  assert.equal((await request('/quote','POST',{...selection,months:12})).status,400);
+  const lead={...selection,name:'시험 고객',phone:'01000000000',birth:'1990-01-01',consent:true,service:'휴대폰',requestKey:crypto.randomUUID(),penalty:'no',balance:'no'};
+  assert.equal((await request('/consultations','POST',{...lead,consent:false})).status,400);
+  const created=await request('/consultations','POST',lead);
+  assert.equal(created.status,201);
+  assert.equal((await request('/consultations','POST',lead)).data.receipt,created.data.receipt);
+  const list=(await request('/admin/leads')).data.items;
+  assert.equal(list.length,1);
+  const detail=(await request('/admin/leads/'+list[0].id)).data;
+  assert.equal(JSON.parse(detail.quote).monthly,90252);
+  assert.equal(JSON.parse(detail.consent).text,'시험 동의');
+  await request('/admin/leads/'+list[0].id,'PATCH',{status:'상담중',notes:'처리 중'});
+  assert.equal((await request('/consultations/lookup','POST',{receipt:created.data.receipt,phone:lead.phone})).data.status,'상담중');
+  assert.equal((await request('/consultations/lookup','POST',{receipt:created.data.receipt,phone:'01000000001'})).status,404);
+  const file=await request('/admin/excel/manufacturers');
+  assert.equal(file.status,200);
+  const workbook=new ExcelJS.Workbook();await workbook.xlsx.load(Buffer.from(file.data));
+  workbook.getWorksheet('manufacturers').getCell('B2').value='일괄 변경 제조사';
+  const input={file:Buffer.from(await workbook.xlsx.writeBuffer()).toString('base64')};
+  const preview=await request('/admin/excel/manufacturers','POST',input);
+  assert.equal(preview.status,200);
+  assert.equal((await request('/admin/manufacturers')).data[0].name,'검증 제조사');
+  assert.equal((await request('/admin/excel/manufacturers','POST',{...input,apply:true,fingerprint:'bad'})).status,400);
+  assert.equal((await request('/admin/excel/manufacturers','POST',{...input,apply:true,fingerprint:preview.data.fingerprint})).data.applied,true);
+  assert.equal((await request('/admin/manufacturers')).data[0].name,'일괄 변경 제조사');
+  assert.equal((await request('/admin/products/'+product.id,'DELETE')).status,200);
+  assert.equal((await request('/products/'+product.id)).status,404);
+  await request('/admin/logout','POST');
+  assert.equal((await request('/admin/leads')).status,401);
+}
+test('SQLite API workflow and workbook',async()=>{const db=await sqlite(':memory:');try{await scenario(db);}finally{db.close();}});
+test('MySQL-compatible database API workflow',{skip:!process.env.MYSQL_TEST_URL},async()=>{
+  const db=await connectMysql(process.env.MYSQL_TEST_URL);
+  try {await applySchema(db);await scenario(db);}finally{await db.close();}
+});
