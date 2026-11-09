@@ -35,7 +35,13 @@ async function scenario(db) {
   const plan=await saveRecord(db,'plans',{carrier_id:carrier.id,name:'검증 요금제',fee:69001,enabled:1});
   const offer=await saveRecord(db,'offers',{capacity_id:cap.id,plan_id:plan.id,join_type:'번호이동',extra:180000});
   await saveRecord(db,'supports',{offer_id:offer.id,source:'검증',amount:310000,expires_at:Date.now()+86400000});
-  await saveSettings(db,{intake:1,privacy:'시험 안내',consent:'시험 동의'});
+  assert.equal((await request('/admin/settings','PUT',{intake:1})).status,400);
+  assert.equal((await request('/admin/settings','PUT',{company:'혜택소 검증',hours:'평일 10:00~18:00',intake:1,privacy:'시험 안내',consent:'시험 동의'})).status,200);
+  const banner=await request('/admin/banners','POST',{title:'검증 배너',image:'/media/showroom.png',kind:'image',fit:'cover',enabled:1});
+  assert.equal(banner.status,201);
+  const site=(await request('/site')).data;
+  assert.equal(site.settings.hours,'평일 10:00~18:00');
+  assert.equal(site.banners[0].image,'/media/showroom.png');
   const current=(await request('/products/'+product.id)).data.offers[0];
   const selection={productId:product.id,offerId:offer.id,version:current.version,mode:'support',months:24};
   assert.equal((await request('/quote','POST',selection)).data.monthly,90252);
@@ -51,6 +57,7 @@ async function scenario(db) {
   assert.equal(list.length,1);
   const detail=(await request('/admin/leads/'+list[0].id)).data;
   assert.equal(JSON.parse(detail.quote).monthly,90252);
+  assert.match(JSON.parse(detail.quote).summary,/월 예상 납부액: 90,252원/);
   assert.equal(JSON.parse(detail.consent).text,'시험 동의');
   await request('/admin/leads/'+list[0].id,'PATCH',{status:'상담중',notes:'처리 중'});
   assert.equal((await request('/consultations/lookup','POST',{receipt:created.data.receipt,phone:lead.phone})).data.status,'상담중');
