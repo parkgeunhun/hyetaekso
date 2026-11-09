@@ -117,7 +117,9 @@ export async function handleApi(request,env,db) {
         if(state){clauses.push('status=?');args.push(state);}
         if(query){clauses.push('(receipt LIKE ? OR name LIKE ? OR phone LIKE ?)');args.push(...Array(3).fill('%'+query+'%'));}
         const where=clauses.length?' WHERE '+clauses.join(' AND '):'';
-        const rows=await db.all('SELECT id,receipt,service,name,phone,status,created_at FROM leads'+where+' ORDER BY created_at DESC LIMIT 51 OFFSET ?',[...args,page*50]);
+        // mysql2 sends JS numbers as DOUBLE in prepared statements; MySQL 8.4
+        // rejects that type for OFFSET. This literal is a clamped integer.
+        const rows=await db.all('SELECT id,receipt,service,name,phone,status,created_at FROM leads'+where+' ORDER BY created_at DESC LIMIT 51 OFFSET '+String(page*50),args);
         return json({items:rows.slice(0,50),more:rows.length>50});
       }
       if(method==='PATCH'&&id)return json(await updateLead(db,id,await body(request)));
