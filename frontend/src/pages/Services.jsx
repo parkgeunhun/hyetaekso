@@ -1,0 +1,94 @@
+import { useEffect,useRef,useState } from 'react';
+import { Link,useParams } from 'react-router-dom';
+import { menu,pages,boardTitles } from './content.js';
+import { Hero,Breadcrumb,Section,Steps,Callout,Art,Icon,Status,Modal } from '../components/common.jsx';
+import { useSite } from '../layouts/SiteLayout.jsx';
+import { useResource } from '../hooks/data.js';
+
+export function Banner() {
+  const {banners,settings}=useSite(),[index,setIndex]=useState(0),[paused,pause]=useState(false),[hover,hovering]=useState(false);
+  const reduced=typeof window!=='undefined'&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const active=banners[index%banners.length];
+  useEffect(()=>{
+    if(!settings.banner_autoplay||paused||hover||reduced||banners.length<2)return;
+    const timer=setInterval(()=>setIndex(i=>(i+1)%banners.length),1000*(settings.banner_interval||6));
+    return ()=>clearInterval(timer);
+  },[settings.banner_autoplay,settings.banner_interval,paused,hover,reduced,banners.length]);
+  const fallback={dark:true,kicker:'좋은 혜택이 모이는 곳',title:['휴대폰 구매, 고민 끝!','혜택은 혜택소에서'],description:'휴대폰부터 인터넷·TV, 가전렌탈, 홈·공간 서비스까지. 일상에 필요한 혜택을 한곳에서 살펴보세요.'};
+  if(!active)return <Hero data={fallback} home><div className="actions"><Link className="btn primary" to="/consult">빠른 상담 신청</Link><Link className="btn light-outline" to="/franchise">가맹점 창업 문의</Link></div></Hero>;
+  const media=active.kind==='video'?<video src={active.image} muted playsInline autoPlay={!reduced} loop controls/>:<picture>{active.mobile&&<source media="(max-width:600px)" srcSet={active.mobile}/>}<img src={active.image} alt={active.alt} style={{objectFit:active.fit}}/></picture>;
+  return <section className="banner" aria-label="홈 배너" onMouseEnter={()=>hovering(true)} onMouseLeave={()=>hovering(false)} onFocus={()=>hovering(true)} onBlur={e=>{if(!e.currentTarget.contains(e.relatedTarget))hovering(false);}}>
+    {active.link&&active.kind!=='video'?<a href={active.link}>{media}</a>:media}
+    {active.intro&&<div className="banner-intro"><h1>{active.title}</h1><p>{active.body}</p></div>}
+    {banners.length>1&&<div className="banner-controls"><button aria-label="이전 배너" onClick={()=>setIndex((index+banners.length-1)%banners.length)}>‹</button><span>{index+1} / {banners.length}</span><button aria-label="다음 배너" onClick={()=>setIndex((index+1)%banners.length)}>›</button>{settings.banner_autoplay&&!reduced&&<button aria-label={paused?'자동 넘김 재생':'자동 넘김 정지'} onClick={()=>pause(!paused)}>{paused?'▶':'Ⅱ'}</button>}</div>}
+  </section>;
+}
+export function Home() {
+  const data=useResource('/products'),rail=useRef(null);
+  return <><Banner/><nav className="service-bar wrap" aria-label="주요 서비스">{menu.filter(([path])=>path!=='about').map(([path,label,detail,icon])=><Link to={'/'+path} key={path}><Icon name={icon} size={39}/><strong>{label}</strong><small>{detail}</small></Link>)}</nav>
+    <Section title="최신 스마트폰 한눈에 보기" className="phone-showcase"><Link className="show-all" to="/phones">전체 모델 보기 ›</Link><Status resource={data}/>{data.data&&<div className="rail-wrap">
+      <button className="rail-arrow prev" aria-label="이전 상품" onClick={()=>rail.current.scrollBy({left:-420,behavior:'smooth'})}>‹</button>
+      <div className="product-rail" ref={rail}>{data.data.items.map(phone=><Link className="rail-item" to={'/phones/'+phone.id} key={phone.id}><small>{phone.sample?'전시 예시':phone.manufacturer}</small>{phone.image&&<img src={phone.image} alt="" loading="lazy"/>}<strong>{phone.name}</strong></Link>)}</div>
+      <button className="rail-arrow next" aria-label="다음 상품" onClick={()=>rail.current.scrollBy({left:420,behavior:'smooth'})}>›</button>
+      {!data.data.items.length&&<p className="message">공개된 휴대폰을 준비하고 있습니다.</p>}</div>}</Section>
+    <Section title={<>혜택소가 <em>약속</em>드립니다</>} className="center"><div className="card-grid columns-3">{[['신뢰할 수 있는 상담','Handshake',4],['안심할 수 있는 서비스','ShieldCheck',8],['빠른 고객 지원','Headset',7]].map(([label,icon,tile])=><article className="service-card" key={label}><Art tile={tile}/><div className="card-body"><h3><Icon name={icon} size={22}/>{label}</h3><p>서비스에 맞는 조건과 이용 방법을 안내합니다.</p></div></article>)}</div></Section></>;
+}
+function ServiceCards({data,slug,onInsurance}) {
+  const type=menu.find(item=>item[0]===slug)?.[1];
+  return <Section title={data.section} className={slug==='telecom'?'':'center'}>
+    <div className={'card-grid columns-'+(slug==='business'?6:slug==='insurance'||slug==='about'?5:slug==='telecom'?3:slug==='moving'?2:4)}>
+      {data.cards.map(([title,icon,detail,second,link],index)=><article className={'service-card '+(slug==='about'?'value-card':'')} key={title}>
+        {slug!=='about'&&<Art tile={slug==='business'?[1,7,6,2,4,0][index]:slug==='insurance'?[8,7,5,8,4][index]:data.tile}/>}
+        <div className="card-body"><h3><span className="card-icon"><Icon name={icon} size={23}/></span>{title}</h3><p>{detail}</p>{second&&<p className="check-line"><Icon name="Check" size={15}/>{second}</p>}
+        {slug==='insurance'?<button className="btn" onClick={()=>onInsurance({title,detail,second})}>자세히 보기 ›</button>:slug!=='about'&&<Link className="btn" to={link||'/consult?service='+encodeURIComponent(slug==='telecom'?title:type)+'&detail='+encodeURIComponent(title)}>{link?'자세히 보기':'상담 신청'} ›</Link>}</div>
+      </article>)}
+    </div>
+  </Section>;
+}
+const brands=[['현대','국산차','전기차','SUV','승용차'],['기아','국산차','전기차','하이브리드','승합차'],['제네시스','국산차','SUV','승용차'],['쉐보레','국산차','SUV'],['르노코리아','국산차','하이브리드','SUV'],['KG모빌리티','국산차','SUV'],['BMW','수입차','전기차','SUV','승용차'],['벤츠','수입차','전기차','승용차'],['아우디','수입차','SUV'],['폭스바겐','수입차','SUV'],['테슬라','수입차','전기차'],['볼보','수입차','하이브리드'],['렉서스','수입차','하이브리드'],['토요타','수입차','하이브리드'],['포르쉐','수입차','승용차'],['랜드로버','수입차','SUV']];
+function MobilityBrands() {
+  const [filter,setFilter]=useState('전체');
+  return <Section title="다양한 브랜드와 차량을 만나보세요" className="center"><div className="tabs" aria-label="차량 분류">{['전체','국산차','수입차','전기차','하이브리드','SUV','승합차','승용차'].map(value=><button key={value} aria-pressed={filter===value} onClick={()=>setFilter(value)}>{value}</button>)}</div><div className="brands">{brands.filter(row=>filter==='전체'||row.includes(filter)).map(([brand])=><Link key={brand} to={'/consult?service=모빌리티&detail='+encodeURIComponent(brand)}><Icon name="CarFront" size={22}/>{brand}</Link>)}</div></Section>;
+}
+function AboutCompany({settings}) {
+  return <><Section title="회사 소개"><div className="about-panel"><Art tile={0}/><div><h3>{settings.company||'혜택소'}</h3><p>통신, 렌탈, 이사·홈, 공간과 사업자 서비스를 연결합니다.</p><dl>{[['대표이사','representative'],['사업자등록번호','registration'],['주소','address']].filter(([,key])=>settings[key]).map(([label,key])=><div key={key}><dt>{label}</dt><dd>{settings[key]}</dd></div>)}</dl></div></div></Section><Steps title="사업 영역" items={['휴대폰·통신','인터넷·TV','생활 서비스','제휴·가맹']}/></>;
+}
+export function ServicePage({slug}) {
+  const {settings}=useSite(),data=pages[slug],name=menu.find(item=>item[0]===slug)?.[1];
+  const [detail,setDetail]=useState(null);
+  return <><Breadcrumb title={name}/><Hero data={data}/>
+    {slug==='support'?<SupportBody/>:<>
+      {slug==='mobility'&&<MobilityBrands/>}
+      {slug==='franchise'&&<Steps title="가맹 진행 절차" items={data.steps}/>}
+      <ServiceCards data={data} slug={slug} onInsurance={setDetail}/>
+      {slug==='about'&&<AboutCompany settings={settings}/>}
+      {slug==='telecom'&&<Section title="통신 결합 할인"><div className="benefit-box"><span>인터넷</span><b>+</b><span>휴대폰</span><b>+</b><span>TV</span><b>=</b><span>결합 할인 상담</span></div></Section>}
+      {data.features&&<Section title={<>{name} 서비스가 <em>특별한 이유</em></>} className={slug==='insurance'?'benefits-dark center':'center'}><div className="benefit-box">{data.features.map((label,i)=><span key={label}><Icon name={['Handshake','BadgePercent','ShieldCheck','Headset'][i]}/><b>{label}</b></span>)}</div></Section>}
+      {data.steps&&slug!=='franchise'&&<Steps title={name+' 진행 절차'} items={data.steps}/>}
+      {slug==='rental'&&<RentalItems/>}
+      {slug==='insurance'?<div className="message wrap">보험은 상품 안내 화면을 제공하고 있습니다. 온라인 보험 상담 기능은 준비 중입니다.</div>:<Callout title={slug==='about'?'함께 성장할 파트너를 찾습니다':name+' 상담이 필요하신가요?'} service={slug==='about'?'제휴·입점':slug==='telecom'?'인터넷':name} phone={settings.phone}/>}
+      {detail&&<Modal title={detail.title} onClose={()=>setDetail(null)}><p>{detail.detail}</p><p>{detail.second}</p><p className="message">보장과 가입 조건은 보험사와 개별 상품에 따라 달라집니다.</p></Modal>}
+    </>}
+  </>;
+}
+function RentalItems() {
+  const resource=useResource('/content/rental');
+  return resource.data?.length?<Section title="등록된 렌탈 상품"><div className="card-grid columns-4">{resource.data.map(item=><Link className="service-card card-body" key={item.id} to={'/board/rental/'+item.id}>{item.image&&<img loading="lazy" src={item.image} alt=""/>}<h3>{item.title}</h3></Link>)}</div></Section>:null;
+}
+function SupportBody() {
+  const {settings}=useSite(),faq=useResource('/content/faq'),[tab,setTab]=useState('전체');
+  const topics=['전체','통신','렌탈','이사·홈','공간','모빌리티','사업자 서비스','가맹안내','기타'];
+  return <><Section title="고객센터 문의 채널"><div className="card-grid columns-4">
+    {[['전화 상담','Phone',settings.phone? <a href={'tel:'+settings.phone.replace(/[^+\d]/g,'')}>{settings.phone}</a>:'전화 안내 준비 중',settings.hours],
+      ['온라인 문의','Headset',<Link className="btn" to="/consult?service=고객문의">1:1 문의하기 ›</Link>],
+      ['카카오톡 상담','Users',settings.kakao?<a className="btn" href={settings.kakao}>상담하기 ›</a>:'상담 채널 준비 중'],
+      ['이메일 문의','ClipboardList',settings.email?<a href={'mailto:'+settings.email}>{settings.email}</a>:'이메일 안내 준비 중']].map(([title,icon,action,note])=><article className="service-card contact-card" key={title}><Icon name={icon} size={36}/><h3>{title}</h3><div>{action}</div>{note&&<p>{note}</p>}</article>)}</div></Section>
+    <Section title="자주 묻는 질문" description="고객들이 자주 문의하시는 내용을 모았습니다." className="center"><div className="tabs">{topics.map(topic=><button key={topic} aria-pressed={tab===topic} onClick={()=>setTab(topic)}>{topic}</button>)}</div><Status resource={faq}/><div className="faq-list">{faq.data?.filter(item=>tab==='전체'||item.category===tab).map(item=><details key={item.id}><summary><b>Q</b>{item.title}</summary><p>{item.body}</p></details>)}</div>{faq.data&&!faq.data.some(item=>tab==='전체'||item.category===tab)&&<p className="message">이 분류의 등록된 질문이 없습니다.</p>}</Section>
+    <Callout title="고객의 소리에 귀 기울이겠습니다" service="고객의 소리"/>
+    <nav className="support-links wrap" aria-label="고객 지원 바로가기">{[['/lookup','상담 신청 내역 조회'],['/board/faq','자주 묻는 질문'],['/board/notice','공지사항'],['/board/review','이용후기'],['/board/qna','질문답변'],['/consult?service=제휴·입점','제휴·입점 문의']].map(([path,label])=><Link to={path} key={path}><Icon name="ClipboardList" size={23}/>{label} ›</Link>)}</nav></>;
+}
+export function Legal({kind}) {
+  const {settings}=useSite();
+  return <><Breadcrumb title={kind==='privacy'?'개인정보처리방침':'이용약관'}/><Section title={kind==='privacy'?'개인정보처리방침':'이용약관'}><p className="preserve">{settings[kind]||'등록을 준비하고 있습니다.'}</p></Section></>;
+}
+export function Sitemap() {return <Section title="사이트맵"><ul>{menu.map(([path,label])=><li key={path}><Link to={'/'+path}>{label}</Link></li>)}<li><Link to="/phones">휴대폰 전체 모델</Link></li>{Object.entries(boardTitles).map(([key,title])=><li key={key}><Link to={'/board/'+key}>{title}</Link></li>)}</ul></Section>;}
