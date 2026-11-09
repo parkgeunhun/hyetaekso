@@ -9,7 +9,7 @@ export default defineConfig({
   testDir:'./tests/browser',
   timeout:140000,
   expect:{timeout:18000},
-  use:{baseURL,browserName:'chromium',launchOptions:existsSync(edge)?{executablePath:edge}:{},trace:'retain-on-failure'},
+  use:{baseURL,reducedMotion:'reduce',browserName:'chromium',launchOptions:existsSync(edge)?{executablePath:edge}:{},trace:'retain-on-failure'},
   workers:1,
   webServer:{command:'node scripts/browser-server.mjs',url:baseURL,timeout:90000,reuseExistingServer:false}
 });
