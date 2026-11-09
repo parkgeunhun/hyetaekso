@@ -59,7 +59,9 @@ test('administrator can sign in, change the company, and sign out',async({page})
   await page.getByLabel('비밀번호').fill(process.env.BROWSER_TEST_PASSWORD);
   await page.getByRole('button',{name:'로그인',exact:true}).click();
   await page.getByLabel('회사명',{exact:true}).fill('혜택소 테스트');
+  const saved=page.waitForResponse(response=>new URL(response.url()).pathname==='/api/admin/settings'&&response.request().method()==='PUT');
   await page.getByRole('button',{name:/저장/}).last().click();
+  expect((await saved).ok()).toBe(true);
   await page.reload();
   await expect(page.getByLabel('회사명',{exact:true})).toHaveValue('혜택소 테스트');
   await page.goto('/admin');
