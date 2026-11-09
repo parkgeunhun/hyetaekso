@@ -38,9 +38,12 @@ test('a real consultation saves and can be looked up by receipt',async({page})=>
 
 test('direct links render catalog and gated administrator sign-in',async({page})=>{
   await page.goto('/phones');
-  await page.getByRole('link',{name:/갤럭시 S26.*조건 선택하기/}).first().click();
-  await expect(page.getByRole('heading',{name:/갤럭시 S26/})).toBeVisible();
+  const model=page.getByRole('link',{name:/갤럭시 S26.*조건 선택하기/}).first();
+  const detailPath=await model.getAttribute('href');
+  await model.click();
+  await expect(page).toHaveURL(new URL(detailPath,page.url()).href);
   await expect(page.getByLabel('할인 방식')).toBeVisible();
+  await expect(page.getByRole('heading',{name:'갤럭시 S26',exact:true})).toBeVisible();
   await page.getByRole('button',{name:'SKT',exact:true}).click();
   await page.getByRole('button',{name:'기기변경',exact:true}).click();
   await page.getByRole('button',{name:'256GB',exact:true}).click();

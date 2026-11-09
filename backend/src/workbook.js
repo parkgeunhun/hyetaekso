@@ -51,6 +51,7 @@ export async function workbookRows(table,base64) {
   return rows;
 }
 export async function importWorkbook(db,table,input) {
+  if(input.apply!==undefined&&typeof input.apply!=='boolean') throw invalid('엑셀 적용 요청을 확인해 주세요.');
   const rows=await workbookRows(table,input.file);
   const fingerprint=digest(JSON.stringify(rows));
   if(input.apply && input.fingerprint!==fingerprint) throw invalid('미리보기를 다시 확인해 주세요.');

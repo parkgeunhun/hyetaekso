@@ -13,8 +13,10 @@ export function text(value,label,max=160,required=true) {
   return value.trim();
 }
 export function money(value,label,min=0,max=100000000) {
-  if ((typeof value!=='number' && !/^\d+$/.test(value ?? '')) || !Number.isSafeInteger(Number(value)) || Number(value)<min || Number(value)>max) throw invalid(label+'을(를) 확인해 주세요.');
-  return Number(value);
+  if (typeof value!=='number' && (typeof value!=='string'||!/^\d+$/.test(value))) throw invalid(label+'을(를) 확인해 주세요.');
+  const amount=Number(value);
+  if (!Number.isSafeInteger(amount)||amount<min||amount>max) throw invalid(label+'을(를) 확인해 주세요.');
+  return amount;
 }
 export function choice(value,allowed,label) {
   if (!allowed.includes(value)) throw invalid(label+'을(를) 확인해 주세요.');
@@ -33,9 +35,10 @@ export async function passwordHash(password,salt=randomBytes(16).toString('hex')
   return salt+':'+Buffer.from(key).toString('hex');
 }
 export async function matchesPassword(password,saved) {
-  const expected=saved || '00000000000000000000000000000000:'+ '0'.repeat(128);
+  const valid=typeof saved==='string'&&/^[a-f0-9]{32}:[a-f0-9]{128}$/.test(saved);
+  const expected=valid?saved:'0'.repeat(32)+':'+ '0'.repeat(128);
   const actual=await passwordHash(password,expected.split(':')[0]);
-  return timingSafeEqual(Buffer.from(actual),Buffer.from(expected)) && Boolean(saved);
+  return timingSafeEqual(Buffer.from(actual),Buffer.from(expected)) && valid;
 }
 export function cookie(value,seconds,env) {
   return 'hyetaekso_session='+value+'; Path=/api; HttpOnly; SameSite=Strict; Max-Age='+seconds+(env.LOCAL_DEV?'':'; Secure');

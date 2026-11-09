@@ -92,6 +92,9 @@ export async function lookupLead(db,request,input) {
 export async function updateLead(db,id,input) {
   const status=choice(input.status,statuses,'상담 상태');
   const notes=text(input.notes??'','관리 메모',5000,false);
-  await db.run('UPDATE leads SET status=?,notes=? WHERE id=?',[status,notes,id]);
+  const result=await db.run('UPDATE leads SET status=?,notes=? WHERE id=?',[status,notes,id]);
+  if (!(result.affectedRows??result.changes) && !(await db.all('SELECT id FROM leads WHERE id=?',[id])).length) {
+    throw new ApiError(404,'not_found','상담 내역을 찾을 수 없습니다.');
+  }
   return {id,status,notes};
 }

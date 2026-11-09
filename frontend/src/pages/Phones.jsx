@@ -57,6 +57,6 @@ function Calculator({item,retry}) {
     </div></div>;
 }
 export function PhoneDetail() {
-  const {id}=useParams(),resource=useResource('/products/'+encodeURIComponent(id));
+  const {id}=useParams(),resource=useResource('/products/'+encodeURIComponent(id),{keepData:true});
   return <><Breadcrumb title="휴대폰 상세"/><Section title={resource.data?.name||'휴대폰 상세'}><Status resource={resource}/>{resource.data&&<Calculator item={resource.data} retry={resource.retry}/>}</Section></>;
 }

@@ -2,7 +2,7 @@ import { createServer } from 'vite';
 import { readFile,writeFile,mkdir } from 'node:fs/promises';
 import { menu } from '../frontend/src/pages/content.js';
 
-const vite=await createServer({mode:'prerender',server:{middlewareMode:true,ws:false},configFile:'vite.config.js'});
+const vite=await createServer({mode:'prerender',server:{middlewareMode:true,ws:false},optimizeDeps:{noDiscovery:true,include:[]},configFile:'vite.config.js'});
 try {
   const {render}=await vite.ssrLoadModule('/src/entry-server.jsx');
   const template=await readFile('frontend/dist/index.html','utf8');

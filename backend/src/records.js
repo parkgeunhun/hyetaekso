@@ -1,5 +1,5 @@
 import { officialEndpoints, officialEndpoint } from './carrier-support.js';
-import { invalid, text, money, choice, mediaUrl } from './security.js';
+import { ApiError, invalid, text, money, choice, mediaUrl } from './security.js';
 import { joins, storageKey, offer, supportSignature } from './catalog.js';
 
 const string=(label,max,required=true)=>value=>text(value??'',label,max,required);
@@ -77,9 +77,12 @@ export async function saveRecord(db,table,input,id) {
     if (!cap||fields.extra>cap.price) throw invalid('추가 지원금은 출고가 이하로 입력해 주세요.');
   }
   if (table==='supports') {
+    const [original]=await db.all('SELECT id,mode FROM supports WHERE id=?',[id]);
+    if (original?.mode==='feed') throw new ApiError(409,'automatic_support','자동 갱신 지원금은 직접 변경할 수 없습니다.');
     const row=await offer(db,fields.offer_id);
     if (!row||fields.amount>row.price||fields.expires_at<=Date.now()) throw invalid('조건, 지원금 금액과 만료 시각을 확인해 주세요.');
     const [existing]=await db.all("SELECT id FROM supports WHERE offer_id=? AND mode='manual'",[row.id]);
+    if (original&&existing&&existing.id!==id) throw new ApiError(409,'duplicate_support','이 가격 조건에는 이미 수동 지원금이 있습니다.');
     if (existing) id=existing.id;
     Object.assign(fields,{mode:'manual',updated_at:Date.now(),signature:supportSignature(row)});
   }

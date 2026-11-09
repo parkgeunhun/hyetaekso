@@ -5,7 +5,7 @@ import { sqlite,applySchema } from '../scripts/local-db.mjs';
 import { connectMysql } from '../backend/src/db.js';
 import { handleApi } from '../backend/src/api.js';
 import { passwordHash } from '../backend/src/security.js';
-import { saveRecord,saveSettings } from '../backend/src/records.js';
+import { saveRecord } from '../backend/src/records.js';
 
 const origin='http://127.0.0.1:5173',env={APP_ORIGIN:origin,LOCAL_DEV:true};
 async function scenario(db) {
@@ -20,6 +20,8 @@ async function scenario(db) {
   await db.run('INSERT INTO accounts(id,username,password_hash) VALUES(?,?,?)',[crypto.randomUUID(),user,await passwordHash(password)]);
   assert.equal((await request('/admin/login','POST',{username:user,password},'https://wrong.test')).status,403);
   assert.equal((await request('/admin/login','POST',{username:user,password:'wrong'})).status,401);
+  await db.run('INSERT INTO accounts(id,username,password_hash) VALUES(?,?,?)',[crypto.randomUUID(),'malformed-hash','invalid']);
+  assert.equal((await request('/admin/login','POST',{username:'malformed-hash',password})).status,401);
   const login=await request('/admin/login','POST',{username:user,password});
   assert.equal(login.status,200);
   const cookie=login.response.headers.get('set-cookie');
@@ -34,7 +36,13 @@ async function scenario(db) {
   const cap=await saveRecord(db,'capacities',{product_id:product.id,name:'256 GB',price:1000001});
   const plan=await saveRecord(db,'plans',{carrier_id:carrier.id,name:'검증 요금제',fee:69001,enabled:1});
   const offer=await saveRecord(db,'offers',{capacity_id:cap.id,plan_id:plan.id,join_type:'번호이동',extra:180000});
-  await saveRecord(db,'supports',{offer_id:offer.id,source:'검증',amount:310000,expires_at:Date.now()+86400000});
+  const manual=await saveRecord(db,'supports',{offer_id:offer.id,source:'검증',amount:310000,expires_at:Date.now()+86400000});
+  const feedId=crypto.randomUUID();
+  await db.run('INSERT INTO supports(id,offer_id,mode,amount,source,updated_at,expires_at,signature) VALUES(?,?,?,?,?,?,?,?)',
+    [feedId,offer.id,'feed',100000,'자동 갱신',manual.updated_at,manual.expires_at,manual.signature]);
+  assert.equal((await request('/admin/supports/'+feedId,'PUT',manual)).status,409);
+  assert.equal((await request('/admin/supports/'+feedId,'DELETE')).status,409);
+  assert.equal((await db.all('SELECT mode FROM supports WHERE id=?',[feedId]))[0]?.mode,'feed');
   assert.equal((await request('/admin/settings','PUT',{intake:1})).status,400);
   assert.equal((await request('/admin/settings','PUT',{company:'혜택소 검증',hours:'평일 10:00~18:00',intake:1,privacy:'시험 안내',consent:'시험 동의'})).status,200);
   const banner=await request('/admin/banners','POST',{title:'검증 배너',image:'/media/showroom.png',kind:'image',fit:'cover',enabled:1});
@@ -48,6 +56,8 @@ async function scenario(db) {
   assert.equal((await request('/quote','POST',{...selection,mode:'contract',months:30})).data.monthly,79085);
   assert.equal((await request('/quote','POST',{...selection,version:'stale'})).status,409);
   assert.equal((await request('/quote','POST',{...selection,months:12})).status,400);
+  assert.equal((await request('/quote','POST',{...selection,months:[24]})).status,400);
+  assert.equal((await request('/quote','POST',{offerId:offer.id})).status,400);
   const lead={...selection,name:'시험 고객',phone:'01000000000',birth:'1990-01-01',consent:true,service:'휴대폰',requestKey:crypto.randomUUID(),penalty:'no',balance:'no'};
   assert.equal((await request('/consultations','POST',{...lead,consent:false})).status,400);
   const created=await request('/consultations','POST',lead);
@@ -59,7 +69,9 @@ async function scenario(db) {
   assert.equal(JSON.parse(detail.quote).monthly,90252);
   assert.match(JSON.parse(detail.quote).summary,/월 예상 납부액: 90,252원/);
   assert.equal(JSON.parse(detail.consent).text,'시험 동의');
-  await request('/admin/leads/'+list[0].id,'PATCH',{status:'상담중',notes:'처리 중'});
+  const change={status:'상담중',notes:'처리 중'};
+  assert.equal((await request('/admin/leads/'+crypto.randomUUID(),'PATCH',change)).status,404);
+  assert.equal((await request('/admin/leads/'+list[0].id,'PATCH',change)).status,200);
   assert.equal((await request('/consultations/lookup','POST',{receipt:created.data.receipt,phone:lead.phone})).data.status,'상담중');
   assert.equal((await request('/consultations/lookup','POST',{receipt:created.data.receipt,phone:'01000000001'})).status,404);
   const file=await request('/admin/excel/manufacturers');
@@ -71,6 +83,8 @@ async function scenario(db) {
   assert.equal(preview.status,200);
   assert.equal((await request('/admin/manufacturers')).data[0].name,'검증 제조사');
   assert.equal((await request('/admin/excel/manufacturers','POST',{...input,apply:true,fingerprint:'bad'})).status,400);
+  assert.equal((await request('/admin/excel/manufacturers','POST',{...input,apply:'false',fingerprint:preview.data.fingerprint})).status,400);
+  assert.equal((await request('/admin/manufacturers')).data[0].name,'검증 제조사');
   assert.equal((await request('/admin/excel/manufacturers','POST',{...input,apply:true,fingerprint:preview.data.fingerprint})).data.applied,true);
   assert.equal((await request('/admin/manufacturers')).data[0].name,'일괄 변경 제조사');
   assert.equal((await request('/admin/products/'+product.id,'DELETE')).status,200);

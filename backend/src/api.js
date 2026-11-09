@@ -143,7 +143,14 @@ export async function handleApi(request,env,db) {
       const input=await body(request);
       return json(await db.transaction(()=>saveRecord(db,action,input,id)),method==='POST'?201:200);
     }
-    if(method==='DELETE'&&id){await db.run('DELETE FROM '+action+' WHERE id=?',[id]);return json({ok:true});}
+    if(method==='DELETE'&&id) {
+      if(action==='supports') {
+        const [record]=await db.all('SELECT mode FROM supports WHERE id=?',[id]);
+        if(record?.mode==='feed') throw new ApiError(409,'automatic_support','자동 갱신 지원금은 직접 변경할 수 없습니다.');
+      }
+      await db.run('DELETE FROM '+action+' WHERE id=?',[id]);
+      return json({ok:true});
+    }
     throw notFound();
   } catch(error) {
     if(error instanceof ApiError)return json({error:{code:error.code,message:error.message}},error.status);

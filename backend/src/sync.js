@@ -7,7 +7,7 @@ export async function syncSupports(db,env,fetcher=fetch) {
   const now=Date.now(),expires=36*3600000;
   const config=await settings(db);
   const report={status:'unconfigured',message:'지원금 피드 또는 공개 조회 연결 코드가 설정되지 않았습니다.'};
-  let targets,values=[];
+  let targets,values=[],feedUnavailable=false;
   try {
     const sources=await db.all("SELECT id FROM offers WHERE source_key<>'' ORDER BY id");
     targets=[];
@@ -16,10 +16,15 @@ export async function syncSupports(db,env,fetcher=fetch) {
       if(row)targets.push(row);
     }
     if(env.SUPPORT_FEED_URL) {
-      const url=new URL(env.SUPPORT_FEED_URL);
-      if(url.protocol!=='https:'||url.username||url.password)throw new Error('피드 주소 확인 필요');
-      values=JSON.parse(await limitedText(await fetcher(url,{signal:AbortSignal.timeout(12000),redirect:'error'})));
-      if(!Array.isArray(values)||values.length>5000)throw new Error('피드 형식 오류');
+      try {
+        const url=new URL(env.SUPPORT_FEED_URL);
+        if(url.protocol!=='https:'||url.username||url.password)throw new Error('피드 주소 확인 필요');
+        const data=JSON.parse(await limitedText(await fetcher(url,{signal:AbortSignal.timeout(12000),redirect:'error'})));
+        if(!Array.isArray(data)||data.length>5000)throw new Error('피드 형식 오류');
+        values=data;
+      } catch {
+        feedUnavailable=true;
+      }
     }
     const officialResponses=new Map(),updates=[];
     let next=0,skipped=0;
@@ -54,8 +59,8 @@ export async function syncSupports(db,env,fetcher=fetch) {
       }
     });
     if(targets.length||env.SUPPORT_FEED_URL) {
-      report.status=changed?(skipped?'partial':'success'):'empty';
-      report.message=changed+'개 조건 갱신 · '+skipped+'개 조건 보류';
+      report.status=changed?(skipped||feedUnavailable?'partial':'success'):(feedUnavailable?'failed':'empty');
+      report.message=changed+'개 조건 갱신 · '+skipped+'개 조건 보류'+(feedUnavailable?' · 지정 피드 조회 실패':'');
     }
   } catch {report.status='failed';report.message='지원금 동기화를 완료하지 못했습니다. 기존 유효 데이터는 유지됩니다.';}
   await db.run('INSERT INTO sync_runs(id,status,message,created_at) VALUES(?,?,?,?)',[crypto.randomUUID(),report.status,report.message,now]);
