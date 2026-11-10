@@ -1,0 +1,63 @@
+.site-shell{min-height:100dvh}
+.header-actions{display:flex;align-items:center;gap:7px}
+.header-contact .theme-toggle{width:36px;padding:0}
+
+[data-site-theme=dark] .site-shell{
+  color-scheme:dark;
+  --ink:#edf2f8;
+  --muted:#b8c5d4;
+  --line:#39495e;
+  --panel:#202d3f;
+  --accent-text:#ffc16a;
+  --site-night:#101722;
+  --site-surface:#182332;
+  --site-hover:#29374b;
+  background:var(--site-night);
+  color:var(--ink)
+}
+[data-site-theme=dark] .site-shell :where(.site-header,.header-inner nav.nav-open,.service-bar,.value-card,.form-panel,.dialog,.skip){
+  background:var(--site-surface);
+  border-color:var(--line)
+}
+[data-site-theme=dark] .site-shell .brand img{padding:3px;border-radius:8px;background:#f7f2ea}
+[data-site-theme=dark] .site-shell :is(.btn:not(:where(.primary,.light-outline,.danger)),.rail-arrow){
+  background:var(--panel);color:var(--ink);border-color:var(--line)
+}
+[data-site-theme=dark] .site-shell :is(.btn:not(:where(.primary,.light-outline,.danger)),.rail-arrow,.brands a):hover{
+  background:var(--site-hover);border-color:var(--accent);color:var(--ink)
+}
+[data-site-theme=dark] .site-shell .theme-toggle{color:var(--accent-text)}
+[data-site-theme=dark] .site-shell :focus-visible{outline-color:var(--accent)}
+
+[data-site-theme=dark] .site-shell .hero:not(.hero-dark,.hero-layered){background:var(--site-night);color:var(--ink)}
+[data-site-theme=dark] .site-shell .hero:not(.hero-dark,.hero-layered) .hero-shade{
+  background:linear-gradient(90deg,#101722 0%,#101722 38%,#101722d9 48%,transparent 75%)
+}
+[data-site-theme=dark] .site-shell .hero:not(.hero-dark,.hero-layered) em{color:var(--accent-text)}
+[data-site-theme=dark] .site-shell :is(.service-card:not(.value-card),.rail-item,.phone-media,.step-icon){background:var(--panel)}
+[data-site-theme=dark] .site-shell :is(.card-icon,.faq-list summary b){background:#3b2b16;color:#ffe2aa;border-color:#785424}
+[data-site-theme=dark] .site-shell :is(.card-body p,.site-footer){color:var(--muted)}
+[data-site-theme=dark] .site-shell :is(.check-line svg,.contact-card>svg,.show-all,.rail-item small,.catalog-card small,.catalog-card>span,.service-bar a:hover svg){color:var(--accent-text)}
+[data-site-theme=dark] .site-shell :is(.brands a,.footer-grid>div){border-color:var(--line)}
+[data-site-theme=dark] .site-shell .site-footer{background:var(--site-surface)}
+
+[data-site-theme=dark] .site-shell :is(input:not([type=checkbox]),select,textarea,.tabs button){
+  background:var(--panel);color:var(--ink);border-color:var(--line)
+}
+[data-site-theme=dark] .site-shell .tabs button[aria-pressed=true]{
+  background:var(--accent);border-color:var(--accent);color:#15120b
+}
+[data-site-theme=dark] .site-shell .purchase-buttons button:hover:not([aria-pressed=true]){background:var(--site-hover)}
+[data-site-theme=dark] .site-shell .quote-box{background:#352919;color:#ffe5b6}
+[data-site-theme=dark] .site-shell .quote-total{border-color:#6e5231}
+[data-site-theme=dark] .site-shell .message{background:var(--panel);color:var(--ink)}
+[data-site-theme=dark] .site-shell .message.error{background:#46242a;color:#ffd2d6}
+[data-site-theme=dark] .site-shell .success{background:#19372e;color:#d8f6e9}
+
+@media(max-width:600px){
+  .site-shell .header-inner{gap:8px}
+  .header-actions{gap:6px}
+  [data-site-theme=dark] .site-shell .hero:not(.hero-dark,.hero-layered) .hero-shade{
+    background:linear-gradient(90deg,#101722ef 0%,#101722c9 49%,#10172247 100%)
+  }
+}

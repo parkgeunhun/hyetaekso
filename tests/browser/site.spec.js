@@ -22,6 +22,34 @@ test('service pages and mobile menu work without horizontal overflow',async({pag
   expect(errors).toEqual([]);
 });
 
+test('insurance shares the public header and the dark mode choice survives a reload',async({page})=>{
+  await page.goto('/insurance');
+  const header=page.getByRole('banner');
+  const toggle=header.getByRole('button',{name:'다크 모드',exact:true});
+  const consult=header.getByRole('link',{name:'상담 신청',exact:true});
+  await expect(header).toHaveCSS('background-color','rgb(255, 255, 255)');
+  await expect(page.locator('.hero')).toHaveCSS('background-color','rgb(245, 241, 236)');
+  for(const width of [1280,980,901,820,390,320]){
+    await page.setViewportSize({width,height:900});
+    const [button,action]=await Promise.all([toggle.boundingBox(),consult.boundingBox()]);
+    expect(button.x+button.width).toBeLessThan(action.x);
+    expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+  }
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-pressed','true');
+  await expect(header).toHaveCSS('background-color','rgb(24, 35, 50)');
+  await expect(page.getByRole('contentinfo')).toHaveCSS('background-color','rgb(24, 35, 50)');
+  await consult.click();
+  await expect(page.getByRole('textbox',{name:'이름',exact:true})).toHaveCSS('background-color','rgb(32, 45, 63)');
+  await page.reload();
+  await expect(toggle).toHaveAttribute('aria-pressed','true');
+  await expect(header).toHaveCSS('background-color','rgb(24, 35, 50)');
+  await toggle.click();
+  await page.reload();
+  await expect(toggle).toHaveAttribute('aria-pressed','false');
+  await expect(header).toHaveCSS('background-color','rgb(255, 255, 255)');
+});
+
 test('consultations can be looked up by receipt and filtered in a single admin list',async({page})=>{
   await page.goto('/consult?service=렌탈');
   await page.getByLabel('이름',{exact:true}).fill('검증 고객');

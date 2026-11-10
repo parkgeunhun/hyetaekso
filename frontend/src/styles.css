@@ -38,9 +38,6 @@ em{color:var(--accent-text);font-style:normal}
 .header-contact small{font-size:11px}
 .header-contact .btn{min-height:35px;border-radius:999px;padding:7px 19px;font-size:13px}
 .menu-toggle{display:none}
-.insurance-header{background:#080a0d;color:white;border-bottom-color:#24272a}
-.insurance-header .brand img{background:#fff;border-radius:7px}
-.insurance-header nav a:hover{color:var(--accent)}
 .breadcrumb{display:flex;align-items:center;gap:12px;font-size:13px;padding-block:13px}
 .breadcrumb a{color:var(--muted)}
 .hero{position:relative;isolation:isolate;min-height:370px;background:#f5f1ec;overflow:hidden;display:flex;align-items:center}
