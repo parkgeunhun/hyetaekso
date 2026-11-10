@@ -141,3 +141,34 @@ test('administrator changes the public banner and registers a phone with pricing
   await expect(page.getByRole('heading',{name:'등록 확인 휴대폰',exact:true})).toBeVisible();
   await expect(page.getByRole('button',{name:'256GB',exact:true})).toBeVisible();
 });
+
+test('media library uses compact tiles and deletes uploads individually and in bulk',async({page})=>{
+  await page.setViewportSize({width:390,height:844});
+  await page.goto('/admin/images-other');
+  await page.getByLabel('아이디').fill('browser-admin');
+  await page.getByLabel('비밀번호').fill(process.env.BROWSER_TEST_PASSWORD);
+  await page.getByRole('button',{name:'로그인',exact:true}).click();
+  const upload=page.getByLabel('파일 업로드',{exact:true});
+  for(const name of ['single-delete.png','bulk-delete-a.png','bulk-delete-b.png']) {
+    await upload.setInputFiles({name,mimeType:'image/png',buffer:Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+X2ZsAAAAASUVORK5CYII=','base64')});
+    await expect(page.getByText(name,{exact:true})).toBeVisible();
+  }
+  const previews=page.locator('.media-library-preview');
+  const first=await previews.nth(0).boundingBox(),second=await previews.nth(1).boundingBox();
+  expect(first.height).toBeLessThanOrEqual(80);
+  expect(first.y).toBe(second.y);
+
+  await page.getByRole('button',{name:'single-delete.png 삭제',exact:true}).click();
+  await page.getByRole('button',{name:'삭제 확인',exact:true}).click();
+  await expect(page.getByText('1개 파일을 삭제했습니다.',{exact:true})).toBeVisible();
+  await expect(page.getByText('single-delete.png',{exact:true})).toHaveCount(0);
+  await page.getByRole('checkbox',{name:'bulk-delete-a.png 선택',exact:true}).check();
+  await page.getByRole('checkbox',{name:'bulk-delete-b.png 선택',exact:true}).check();
+  await page.getByRole('button',{name:'선택 삭제 (2)',exact:true}).click();
+  await page.getByRole('button',{name:'삭제 확인',exact:true}).click();
+  await expect(page.getByText('2개 파일을 삭제했습니다.',{exact:true})).toBeVisible();
+  await expect(page.getByText('서비스 페이지 공용 이미지',{exact:true})).toBeVisible();
+  await expect(page.getByText('bulk-delete-a.png',{exact:true})).toHaveCount(0);
+  await expect(page.getByText('bulk-delete-b.png',{exact:true})).toHaveCount(0);
+});

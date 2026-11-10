@@ -87,6 +87,24 @@ async function scenario(db) {
   assert.equal(publicAppearance.mobile,'/media/services.png');
   assert.equal((await request('/admin/appearance/home-hero','DELETE')).status,200);
   assert.equal((await request('/site')).data.appearance['home-hero'],undefined);
+  const secondMedia=await handleApi(new Request(origin+'/api/admin/media',{
+    method:'POST',headers:{origin,cookie:session,'content-type':'image/jpeg'},body:new Uint8Array([255,216,255,217])
+  }),env,db);
+  assert.equal(secondMedia.status,201);
+  const {url:unusedMediaUrl}=await secondMedia.json();
+  const ids=[mediaUrl,unusedMediaUrl].map(url=>url.split('/').at(-1));
+  const usedUrl='https://preview.test'+mediaUrl+'?v=1';
+  assert.equal((await request('/admin/appearance/home-hero','PUT',{mobile:usedUrl})).status,200);
+  const blocked=await request('/admin/media','DELETE',{ids});
+  assert.equal(blocked.status,409);
+  assert.equal(blocked.data.error.code,'media_in_use');
+  assert.match(blocked.data.error.message,/홈 화면/);
+  assert.equal((await request(unusedMediaUrl.slice(4))).status,200);
+  assert.equal((await request('/admin/appearance/home-hero','DELETE')).status,200);
+  assert.equal((await request('/admin/media','DELETE',{ids})).data.deleted,2);
+  assert.equal((await request(mediaUrl.slice(4))).status,404);
+  assert.equal((await request('/admin/media/'+ids[0],'DELETE')).data.deleted,0);
+  assert.equal((await request('/admin/appearance/home-hero','PUT',{mobile:mediaUrl})).data.error.code,'media_deleted');
   const current=(await request('/products/'+product.id)).data.offers[0];
   const selection={productId:product.id,offerId:offer.id,version:current.version,mode:'support',months:24};
   assert.equal((await request('/quote','POST',selection)).data.monthly,90252);

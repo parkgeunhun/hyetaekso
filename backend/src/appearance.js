@@ -1,6 +1,7 @@
 import { appearanceSlotByKey } from '../../shared/site-appearance.js';
 import { ApiError, invalid, pictureUrl, text } from './security.js';
 import { replace } from './records.js';
+import { lockMediaReferences } from './media-store.js';
 
 const prefix = 'appearance:';
 
@@ -29,6 +30,7 @@ export async function saveAppearance(db, key, input) {
   }
   if (key.endsWith('-hero') && !values.headline && !values.subtitle) throw invalid('배너 제목을 한 줄 이상 입력해 주세요.');
   if (Object.hasOwn(values,'title') && !values.title) throw invalid('카드 제목을 입력해 주세요.');
+  await lockMediaReferences(db, values.image, values.mobile);
   await replace(db, 'settings', prefix + key, {value: JSON.stringify(values)});
   return values;
 }

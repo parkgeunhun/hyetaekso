@@ -22,8 +22,43 @@ function Gallery({initialCategory,kind,onSelect,onEdit}) {
   const [filterKind,setFilterKind]=useState(kind);
   const [query,setQuery]=useState('');
   const [page,setPage]=useState(0);
+  const [selected,setSelected]=useState([]);
+  const [removing,setRemoving]=useState(null);
+  const [deleting,setDeleting]=useState(false);
+  const [message,setMessage]=useState('');
+  const [deleteError,setDeleteError]=useState('');
   const resource=useResource('/admin/media?'+new URLSearchParams({category,kind:filterKind,q:query,page}));
-  const change=setter=>event=>{setter(event.target.value);setPage(0);};
+  const change=setter=>event=>{setter(event.target.value);setSelected([]);setPage(0);setMessage('');};
+  const items=resource.data?.items??[];
+  const uploads=items.filter(item=>item.source==='upload');
+  const selectedFiles=uploads.filter(item=>selected.includes(item.id));
+  const allSelected=uploads.length>0&&selectedFiles.length===uploads.length;
+
+  function choosePage(next) {
+    setPage(next);setSelected([]);setMessage('');
+  }
+
+  function confirmDelete(files) {
+    setMessage('');setDeleteError('');setRemoving(files);
+  }
+
+  async function deleteFiles() {
+    setDeleting(true);setDeleteError('');
+    const ids=removing.map(file=>file.id);
+    try {
+      const {deleted}=ids.length===1?await api('/admin/media/'+ids[0],{method:'DELETE'}):
+        await api('/admin/media',{method:'DELETE',body:{ids}});
+      setRemoving(null);
+      setSelected(current=>current.filter(id=>!ids.includes(id)));
+      if(page>0&&items.every(item=>ids.includes(item.id)))setPage(page-1);
+      resource.retry();
+      setMessage(deleted?deleted+'개 파일을 삭제했습니다.':'목록에서 이미 삭제된 파일입니다.');
+    } catch(error) {
+      setDeleteError(error.message);
+    } finally {
+      setDeleting(false);
+    }
+  }
 
   return <section className="media-gallery" aria-label="보관함 파일 목록">
     <div className="filters media-gallery-filters">
@@ -32,25 +67,48 @@ function Gallery({initialCategory,kind,onSelect,onEdit}) {
       <label>파일 검색<input type="search" value={query} maxLength={160} placeholder="파일 이름 또는 주소" onChange={change(setQuery)}/></label>
     </div>
     <Status resource={resource}/>
+    {message&&<p className="message" role="status">{message}</p>}
     {resource.data&&<>
-      {resource.data.items.length===0&&<p className="message">이 조건에 해당하는 파일이 없습니다.</p>}
+      {!onSelect&&uploads.length>0&&<div className="actions media-library-actions">
+        <label className="checkbox"><input type="checkbox" checked={allSelected} onChange={()=>setSelected(allSelected?[]:uploads.map(item=>item.id))}/>이 페이지 전체 선택</label>
+        <button className="btn danger" type="button" disabled={!selectedFiles.length} onClick={()=>confirmDelete(selectedFiles)}>선택 삭제{selectedFiles.length>0?' ('+selectedFiles.length+')':''}</button>
+      </div>}
+      {items.length===0&&<p className="message">이 조건에 해당하는 파일이 없습니다.</p>}
       <div className="media-library-grid">
-        {resource.data.items.map(item=><article className="media-library-card" key={item.url}>
+        {items.map(item=><article className={'media-library-card '+(selected.includes(item.id)?'media-library-selected':'')} key={item.url}>
           <div className="media-library-preview">
             {item.kind==='video'?<video src={item.url} preload="metadata" controls/>:<img src={item.url} alt="" loading="lazy" referrerPolicy="no-referrer"/>}
+            {!onSelect&&item.source==='upload'&&<label className="media-library-check">
+              <input type="checkbox" aria-label={item.label+' 선택'} checked={selected.includes(item.id)} onChange={event=>{
+                const checked=event.target.checked;
+                setSelected(current=>checked?[...current,item.id]:current.filter(id=>id!==item.id));
+              }}/>
+            </label>}
           </div>
           <strong title={item.label}>{item.label}</strong>
-          <small>{mediaCategories[item.category]} · {item.source==='builtin'?'기본 제공':item.source==='reference'?'사이트 참조':'업로드'}</small>
+          <small>{item.inUse?'사용 중':item.source==='builtin'?'기본 제공':item.source==='reference'?'사이트 참조':mediaCategories[item.category]}</small>
           {onSelect?<button className="btn" type="button" aria-label={item.label+' 선택'} onClick={()=>onSelect(item.url)}>선택</button>:
-            item.source==='upload'&&<button className="btn" type="button" aria-label={item.label+' 이름·분류 수정'} onClick={()=>onEdit(item)}>이름·분류 수정</button>}
+            item.source==='upload'&&<div className="media-card-actions">
+              <button className="btn" type="button" aria-label={item.label+' 이름·분류 수정'} onClick={()=>onEdit(item)}>수정</button>
+              <button className="btn" type="button" aria-label={item.label+' 삭제'} onClick={()=>confirmDelete([item])}>삭제</button>
+            </div>}
         </article>)}
       </div>
       {(page>0||resource.data.more)&&<div className="actions">
-        <button className="btn" type="button" disabled={!page} onClick={()=>setPage(page-1)}>이전</button>
+        <button className="btn" type="button" disabled={!page} onClick={()=>choosePage(page-1)}>이전</button>
         <span>{page+1} 페이지</span>
-        <button className="btn" type="button" disabled={!resource.data.more} onClick={()=>setPage(page+1)}>다음</button>
+        <button className="btn" type="button" disabled={!resource.data.more} onClick={()=>choosePage(page+1)}>다음</button>
       </div>}
     </>}
+    {removing&&<Modal title={removing.length+'개 파일 삭제'} onClose={()=>{if(!deleting)setRemoving(null);}}>
+      <p>선택한 업로드 파일을 보관함과 DB에서 삭제합니다.</p>
+      <ul className="media-delete-list">{removing.map(file=><li key={file.id}>{file.label}</li>)}</ul>
+      {deleteError&&<p className="message error" role="alert">{deleteError}</p>}
+      <div className="actions">
+        <button className="btn" type="button" disabled={deleting} onClick={()=>setRemoving(null)}>취소</button>
+        <button className="btn danger" type="button" disabled={deleting} onClick={deleteFiles}>{deleting?'삭제 중…':'삭제 확인'}</button>
+      </div>
+    </Modal>}
   </section>;
 }
 

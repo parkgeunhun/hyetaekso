@@ -1,6 +1,6 @@
 import { serveMedia } from './media-response.js';
 import { databaseMedia, mediaKey, mediaLimit, mediaTypes } from './media-store.js';
-import { listMedia, mediaDetails, updateMedia } from './media-library.js';
+import { deleteMedia, listMedia, mediaDetails, updateMedia } from './media-library.js';
 import { ApiError, invalid, digest, token, matchesPassword, cookie, accountSession, requireOrigin, rateLimit, readJson, text, choice } from './security.js';
 import { listProducts, product, quote } from './catalog.js';
 import { definitions, saveRecord, settings, saveSettings } from './records.js';
@@ -119,6 +119,7 @@ export async function handleApi(request,env,db) {
       if(method==='GET'&&!id)return json(await listMedia(db,searchParams));
       if(method==='POST'&&!id)return await media(request,databaseMedia(db),searchParams);
       if(method==='PATCH'&&id)return json(await updateMedia(db,id,await body(request)));
+      if(method==='DELETE')return json(await deleteMedia(db,id?[id]:(await body(request)).ids));
     }
     if(action==='appearance') {
       if(method==='GET'&&!id) return json(await appearance(db));

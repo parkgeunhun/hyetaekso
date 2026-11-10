@@ -1,6 +1,7 @@
 import { officialEndpoints, officialEndpoint } from './carrier-support.js';
 import { ApiError, invalid, text, money, choice, mediaUrl, pictureUrl } from './security.js';
 import { joins, storageKey, offer, supportSignature } from './catalog.js';
+import { lockMediaReferences } from './media-store.js';
 
 const string=(label,max,required=true)=>value=>text(value??'',label,max,required);
 const number=(label,min,max)=>value=>money(value??0,label,min,max);
@@ -93,6 +94,9 @@ export async function saveRecord(db,table,input,id) {
     if (original&&existing&&existing.id!==id) throw new ApiError(409,'duplicate_support','이 가격 조건에는 이미 수동 지원금이 있습니다.');
     if (existing) id=existing.id;
     Object.assign(fields,{mode:'manual',updated_at:Date.now(),signature:supportSignature(row)});
+  }
+  if (fields.image||fields.mobile||table==='banners') {
+    await lockMediaReferences(db,fields.image,fields.mobile,table==='banners'?fields.link:null);
   }
   if (table==='content') fields.created_at=(await db.all('SELECT created_at FROM content WHERE id=?',[id]))[0]?.created_at??Date.now();
   await replace(db,table,id,fields);

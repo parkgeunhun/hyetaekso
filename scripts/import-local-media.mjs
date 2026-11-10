@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { readFile, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
-import { databaseMedia, mediaKey, mediaTypes } from '../backend/src/media-store.js';
+import { databaseMedia, mediaKey, mediaTypes, mediaWasDeleted } from '../backend/src/media-store.js';
 import { applySchema, localDatabase } from './local-db.mjs';
 
 const directories = process.argv.slice(2);
@@ -20,7 +20,7 @@ try {
     });
     for (const entry of entries) {
       const key = entry.name;
-      if (!entry.isFile() || !mediaKey.test(key)) continue;
+      if (!entry.isFile() || !mediaKey.test(key) || await mediaWasDeleted(db,key)) continue;
       const bytes = await readFile(join(directory, key));
       if (await store.head(key)) verified++;
       else {
