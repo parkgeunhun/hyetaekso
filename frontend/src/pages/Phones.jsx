@@ -25,10 +25,23 @@ export function Catalog() {
 }
 const selectors=[['carrier','구매할 통신사'],['join_type','가입 유형'],['storage','용량'],['plan_id','요금제']];
 const preferredOptions={carrier:['SKT','KT','LG U+','LGU+'],join_type:['기기변경','신규가입','번호이동']};
+const discountOptions=[['support','공통지원금'],['contract','선택약정 25%']];
+const installmentOptions=[24,30,36].map(value=>[value,value+'개월']);
 function optionOrder(key,value) {
   const order=preferredOptions[key];
   const index=order.indexOf(value);
   return index<0?order.length:index;
+}
+function PurchaseOptions({label,options,selected,onSelect,hints,children}) {
+  const columns=Math.max(2,Math.min(options.length,3));
+  return <fieldset className="purchase-group">
+    <legend>{label}</legend>
+    <div className="purchase-buttons" style={{'--option-columns':columns}}>
+      {options.map(([value,name])=><button key={value} type="button" title={hints?.[name]} aria-pressed={selected===value}
+        onClick={()=>onSelect(value)}>{name}</button>)}
+    </div>
+    {children}
+  </fieldset>;
 }
 function Calculator({item,retry}) {
   const {settings}=useSite(),[selection,setSelection]=useState({}),[color,setColor]=useState(item.colors[0]?.name||''),[mode,setMode]=useState('support'),[months,setMonths]=useState(24);
@@ -49,17 +62,23 @@ function Calculator({item,retry}) {
   const picture=item.colors.find(entry=>entry.name===color)?.image||item.image;
   const joins={기기변경:settings.join_change,신규가입:settings.join_new,번호이동:settings.join_port};
   return <div className="phone-detail"><div className="phone-media">{picture&&<img src={picture} alt={item.name+(color?' '+color:'')}/>}<p className="preserve">{item.description}</p></div>
-    <div><div className="form-panel"><h2>구매 조건 선택</h2>
-      {item.colors.length>0&&<fieldset><legend>색상</legend><div className="choices">{item.colors.map(entry=><button key={entry.name} aria-pressed={color===entry.name} onClick={()=>setColor(entry.name)}>{entry.name}</button>)}</div></fieldset>}
+    <div><section className="form-panel purchase-panel" aria-labelledby="purchase-heading"><h2 id="purchase-heading">구매 조건 선택</h2>
+      {item.colors.length>0&&<PurchaseOptions label="색상" options={item.colors.map(({name})=>[name,name])} selected={color} onSelect={setColor}/>}
       {hasOffers&&selectors.map(([key,label],level)=>{
         const available=[...new Map(options(level,selection).map(option=>[option[key],key==='plan_id'?option.plan+' · '+won(option.fee):option[key]]))];
         if(preferredOptions[key])available.sort(([left],[right])=>optionOrder(key,left)-optionOrder(key,right));
         if(key==='plan_id')return <label key={key}>{label}<select aria-label={label} value={selection[key]??''} onChange={e=>select(level,e.target.value)}><option value="">요금제 선택</option>{available.map(([value,name])=><option key={value} value={value}>{name}</option>)}</select></label>;
-        return <fieldset key={key}><legend>{label}</legend><div className="choices">{available.map(([value,name])=><button key={value} title={key==='join_type'?joins[name]:undefined} aria-pressed={selection[key]===value} onClick={()=>select(level,value)}>{name}</button>)}</div>{key==='join_type'&&<details className="join-help"><summary>가입 유형 설명</summary>{Object.entries(joins).map(([name,help])=><p key={name}><strong>{name}</strong> {help}</p>)}</details>}</fieldset>;
+        const isJoin=key==='join_type';
+        return <PurchaseOptions key={key} label={label} options={available} selected={selection[key]} onSelect={value=>select(level,value)} hints={isJoin?joins:undefined}>
+          {isJoin&&<details className="join-help"><summary>가입 유형 설명</summary>{Object.entries(joins).map(([name,help])=><p key={name}><strong>{name}</strong> {help}</p>)}</details>}
+        </PurchaseOptions>;
       })}
-      {hasOffers&&<div className="filters"><label>할인 방식<select value={mode} onChange={e=>setMode(e.target.value)}><option value="support">공통지원금</option><option value="contract">선택약정 25%</option></select></label><label>할부 개월<select value={months} onChange={e=>setMonths(Number(e.target.value))}>{[24,30,36].map(value=><option key={value}>{value}</option>)}</select></label></div>}
+      {hasOffers&&<div className="purchase-payment">
+        <PurchaseOptions label="할인 방식" options={discountOptions} selected={mode} onSelect={setMode}/>
+        <PurchaseOptions label="할부 개월" options={installmentOptions} selected={months} onSelect={setMonths}/>
+      </div>}
       {result?<div className="quote-box" aria-live="polite"><div><span>출고가</span><b>{won(row.price)}</b></div><div><span>공통지원금</span><b>{result.pending?'확인 중':won(result.support)}</b></div><div><span>추가 지원금</span><b>{won(row.extra)}</b></div><div><span>선택약정 월 할인</span><b>{won(result.discount)}</b></div><div><span>단말기 원금</span><b>{won(result.principal)}</b></div><div className="quote-total"><span>월 예상 납부액</span><strong>{won(result.monthly)}</strong></div><small>할부 이자 제외. {result.pending&&'공통지원금 차감 전 금액입니다.'}</small></div>:<p className="message">{hasOffers?'통신사, 가입 유형, 용량, 요금제를 선택해 주세요.':'이 모델의 통신사와 요금제 조건을 준비 중입니다.'}</p>}
-    </div>
+    </section>
     {item.sample||item.closed?<p className="message">{item.sample?'전시 예시 상품입니다. 계산 결과를 확인할 수 있습니다.':'이 상품은 상담 접수가 마감되었습니다.'}</p>:
       (row||settings.help_enabled===1)&&<ConsultationForm fixedService="휴대폰" quoteInput={{productId:item.id,color,selection,offerId:row?.id,version:row?.version,mode,months}} onQuoteChanged={retry}/>}
     </div></div>;
