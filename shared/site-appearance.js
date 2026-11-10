@@ -32,6 +32,8 @@ function hero(slug, group, data) {
     ['description', '설명', data.description, 1000]
   ];
   data.features?.forEach((value, index) => fields.push(['feature' + index, '특징 ' + (index + 1), value, 100]));
+  if (data.section) fields.push(['section', '서비스 목록 제목', data.section, 160]);
+  data.steps?.forEach((value, index) => fields.push(['step' + index, '진행 단계 ' + (index + 1), value, 100]));
   if (slug === 'home') {
     fields.push(['primary', '상담 버튼 문구', data.primary, 50], ['secondary', '가맹 안내 버튼 문구', data.secondary, 50]);
   }
@@ -51,13 +53,20 @@ export const appearanceSlots = [
   {key: 'logo', group: '공통', label: '헤더·푸터 로고', path: '/', image: defaultBrandImage},
   {key: 'favicon', group: '공통', label: '브라우저 탭 아이콘', path: '/', image: defaultBrandImage},
   hero('home', '홈', homeHero),
-  ...homePromises.map(([label, , tile], index) => ({key: cardSlot('home', index), group: '홈', label, path: '/', tile})),
+  ...homePromises.map(([label, , tile], index) => ({
+    key: cardSlot('home', index), group: '홈', label, path: '/', tile,
+    fields: [['title', '카드 제목', label, 160], ['description', '설명', '서비스에 맞는 조건과 이용 방법을 안내합니다.', 1000]]
+  })),
   ...menu.flatMap(([slug, name]) => {
     const data = pages[slug];
     const slots = [hero(slug, name, data)];
     if (slug === 'about') slots.push({key: 'about-company', group: name, label: '회사 소개 사진', path: '/about', tile: 0});
-    else data.cards?.forEach(([label], index) => {
-      slots.push({key: cardSlot(slug, index), group: name, label: label + ' 사진', path: '/' + slug, tile: serviceCardTile(slug, data, index)});
+    data.cards?.forEach(([label, , detail, secondary], index) => {
+      slots.push({
+        key: cardSlot(slug, index), group: name, label, path: '/' + slug,
+        tile: serviceCardTile(slug, data, index), textOnly: slug === 'about',
+        fields: [['title', '카드 제목', label, 160], ['description', '설명', detail, 1000], ['secondary', '추가 안내', secondary, 400]]
+      });
     });
     return slots;
   })
@@ -72,6 +81,8 @@ export function heroAppearance(data, values = {}) {
     title: [values.headline ?? data.title[0], values.subtitle ?? data.title[1]],
     description: values.description ?? data.description,
     features: data.features?.map((label, index) => values['feature' + index] ?? label).filter(Boolean),
+    section: values.section ?? data.section,
+    steps: data.steps?.map((label, index) => values['step' + index] ?? label).filter(Boolean),
     primary: values.primary ?? data.primary,
     secondary: values.secondary ?? data.secondary
   };

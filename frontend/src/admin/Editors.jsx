@@ -4,6 +4,7 @@ import { api } from '../services/api.js';
 import { useResource } from '../hooks/data.js';
 import { Modal,Status } from '../components/common.jsx';
 import { entities,recordTitle,settingsFields,optionLabels } from './fields.js';
+import { boardTitles } from '../pages/content.js';
 
 const imageTypes='image/jpeg,image/png,image/webp,image/gif';
 const videoTypes='video/mp4,video/webm';
@@ -59,15 +60,23 @@ function recordFields(entity, fields, form) {
     return [field];
   });
 }
-export function Records({entity,refs,onChanged}) {
-  const definition=entities[entity],resource=useResource('/admin/'+entity);
+export function Records({entity,refs,onChanged,kind,category,title:customTitle}) {
+  const definition=entities[entity];
+  const queryString=kind?'?'+new URLSearchParams(category?{kind,category}:{kind}):'';
+  const resource=useResource('/admin/'+entity+queryString);
+  const title=customTitle??(kind?boardTitles[kind]:definition.title);
+  const fields=definition.fields.filter(([key])=>!(kind&&key==='kind')&&!(category&&key==='category'));
   const [form,setForm]=useState(null),[query,setQuery]=useState(''),[busy,setBusy]=useState(false),[error,setError]=useState(''),[remove,setRemove]=useState(null);
   const records=resource.data?.filter(item=>Object.values(item).some(value=>String(value).toLowerCase().includes(query.toLowerCase())))||[];
   async function save(event) {
     event.preventDefault();
     if(mediaUploading(event.currentTarget)){setError('파일 업로드가 끝난 후 저장해 주세요.');return;}
     setBusy(true);setError('');
-    try {await api('/admin/'+entity+(form.id?'/'+form.id:''),{method:form.id?'PUT':'POST',body:form});setForm(null);resource.retry();onChanged();}
+    try {
+      const body={...form,...(kind?{kind}:{}),...(category?{category}:{})};
+      await api('/admin/'+entity+(form.id?'/'+form.id:''),{method:form.id?'PUT':'POST',body});
+      setForm(null);resource.retry();onChanged();
+    }
     catch(error){setError(error.message);}finally{setBusy(false);}
   }
   async function deleteItem() {
@@ -75,22 +84,28 @@ export function Records({entity,refs,onChanged}) {
     try {await api('/admin/'+entity+'/'+remove.id,{method:'DELETE'});setRemove(null);resource.retry();onChanged();}
     catch(error){setError(error.message);}finally{setBusy(false);}
   }
-  return <><div className="admin-head"><div><h1>{definition.title}</h1><p>등록된 항목을 검색하고 변경할 수 있습니다.</p></div>{entity==='products'?<Link className="btn primary" to="/admin/phone-registration">휴대폰 등록</Link>:<button className="btn primary" onClick={()=>{setError('');setForm(blankFields(definition.fields));}}>+ 새 항목</button>}</div>
+  return <><div className="admin-head"><div><h1>{title}</h1><p>등록된 항목을 검색하고 변경할 수 있습니다.</p></div>{entity==='products'?<Link className="btn primary" to="/admin/phone-registration">휴대폰 등록</Link>:<button className="btn primary" onClick={()=>{setError('');setForm(blankFields(fields));}}>+ 새 항목</button>}</div>
     <div className="admin-panel"><label>목록 검색<input type="search" value={query} onChange={e=>setQuery(e.target.value)}/></label><Status resource={resource}/>
       <div className="table-scroll"><table><thead><tr><th>항목</th><th>관리 코드</th><th>관리</th></tr></thead><tbody>{records.map(item=><tr key={item.id}><td>{recordTitle(item)}</td><td>{item.id}</td><td>{item.mode==='feed'?<span>자동 갱신</span>:<><button className="btn" onClick={()=>{setError('');setForm(item);}}>수정</button> <button className="btn" onClick={()=>{setError('');setRemove(item);}}>삭제</button></>}</td></tr>)}</tbody></table></div>{resource.data&&!records.length&&<p className="message">항목이 없습니다.</p>}</div>
-    {form&&<Modal title={definition.title+(form.id?' 수정':' 등록')} onClose={()=>{if(!busy)setForm(null);}}><form className="form-stack" onSubmit={save}><EditorFields fields={recordFields(entity,definition.fields,form)} form={form} setForm={setForm} refs={refs}/>{error&&<p role="alert" className="message error">{error}</p>}<button className="btn primary" disabled={busy}>저장</button></form></Modal>}
+    {form&&<Modal title={title+(form.id?' 수정':' 등록')} onClose={()=>{if(!busy)setForm(null);}}><form className="form-stack" onSubmit={save}><EditorFields fields={recordFields(entity,fields,form)} form={form} setForm={setForm} refs={refs}/>{error&&<p role="alert" className="message error">{error}</p>}<button className="btn primary" disabled={busy}>저장</button></form></Modal>}
     {remove&&<Modal title="항목 삭제" onClose={()=>{if(!busy)setRemove(null);}}><p>{recordTitle(remove)} 항목을 삭제합니다.</p>{error&&<p role="alert" className="message error">{error}</p>}<button className="btn danger" onClick={deleteItem} disabled={busy}>삭제</button></Modal>}
   </>;
 }
-export function SiteSettings() {
+export function SiteSettings({only,title='사이트 설정',onChanged}) {
   const resource=useResource('/admin/settings'),[form,setForm]=useState(null),[result,setResult]=useState(null),[busy,setBusy]=useState(false);
+  const fields=only?settingsFields.filter(([key])=>only.includes(key)):settingsFields;
   useEffect(()=>{if(resource.data)setForm(resource.data);},[resource.data]);
   async function save(event) {
     event.preventDefault();setBusy(true);setResult(null);
-    try {setForm(await api('/admin/settings',{method:'PUT',body:form}));setResult({message:'설정을 저장했습니다.'});}
+    try {
+      const body=Object.fromEntries(fields.map(([key])=>[key,form[key]]));
+      setForm(await api('/admin/settings',{method:'PUT',body}));
+      setResult({message:'설정을 저장했습니다.'});
+      onChanged?.();
+    }
     catch(error){setResult({message:error.message,error:true});}finally{setBusy(false);}
   }
-  return <><h1>사이트 설정</h1><Status resource={resource}/>{form&&<form className="admin-panel form-stack settings-grid" onSubmit={save}><EditorFields fields={settingsFields} form={form} setForm={setForm}/>{result&&<p role={result.error?'alert':'status'} className={'message '+(result.error?'error':'')}>{result.message}</p>}<button className="btn primary" disabled={busy}>설정 저장</button></form>}</>;
+  return <><h1>{title}</h1><Status resource={resource}/>{form&&<form className="admin-panel form-stack settings-grid" onSubmit={save}><EditorFields fields={fields} form={form} setForm={setForm}/>{result&&<p role={result.error?'alert':'status'} className={'message '+(result.error?'error':'')}>{result.message}</p>}<button className="btn primary" disabled={busy}>설정 저장</button></form>}</>;
 }
 function toBase64(file) {
   return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result).split(',')[1]);reader.onerror=()=>reject(new Error('파일을 읽지 못했습니다.'));reader.readAsDataURL(file);});

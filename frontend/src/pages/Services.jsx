@@ -5,6 +5,7 @@ import { Hero,Breadcrumb,Section,Steps,Callout,Art,Icon,Status,Modal } from '../
 import { useSite } from '../layouts/SiteLayout.jsx';
 import { useResource } from '../hooks/data.js';
 import { homeHero, homePromises, heroAppearance, heroSlot, cardSlot, serviceCardTile } from '../../../shared/site-appearance.js';
+import { menuLabel, siteMenu } from '../../../shared/navigation.js';
 
 export function Banner() {
   const {banners,settings,appearance}=useSite(),[index,setIndex]=useState(0),[paused,pause]=useState(false),[hover,hovering]=useState(false);
@@ -33,26 +34,32 @@ export function Banner() {
   </section>;
 }
 export function Home() {
-  const {appearance}=useSite();
+  const {appearance,navigation}=useSite();
   const data=useResource('/products'),rail=useRef(null);
-  return <><Banner/><nav className="service-bar wrap" aria-label="주요 서비스">{menu.filter(([path])=>path!=='about').map(([path,label,detail,icon])=><Link to={'/'+path} key={path}><Icon name={icon} size={39}/><strong>{label}</strong><small>{detail}</small></Link>)}</nav>
+  return <><Banner/><nav className="service-bar wrap" aria-label="주요 서비스">{siteMenu(navigation).filter(([path])=>path!=='about').map(([path,label,detail,icon])=><Link to={'/'+path} key={path}><Icon name={icon} size={39}/><strong>{label}</strong><small>{detail}</small></Link>)}</nav>
     <Section title="최신 스마트폰 한눈에 보기" className="phone-showcase"><Link className="show-all" to="/phones">전체 모델 보기 ›</Link><Status resource={data}/>{data.data&&<div className="rail-wrap">
       <button className="rail-arrow prev" aria-label="이전 상품" onClick={()=>rail.current.scrollBy({left:-420,behavior:'smooth'})}>‹</button>
       <div className="product-rail" ref={rail}>{data.data.items.map(phone=><Link className="rail-item" to={'/phones/'+phone.id} key={phone.id}><small>{phone.sample?'전시 예시':phone.manufacturer}</small>{phone.image&&<img src={phone.image} alt="" loading="lazy"/>}<strong>{phone.name}</strong></Link>)}</div>
       <button className="rail-arrow next" aria-label="다음 상품" onClick={()=>rail.current.scrollBy({left:420,behavior:'smooth'})}>›</button>
       {!data.data.items.length&&<p className="message">공개된 휴대폰을 준비하고 있습니다.</p>}</div>}</Section>
-    <Section title={<>혜택소가 <em>약속</em>드립니다</>} className="center"><div className="card-grid columns-3">{homePromises.map(([label,icon,tile],index)=><article className="service-card" key={label}><Art tile={tile} src={appearance?.[cardSlot('home',index)]?.image}/><div className="card-body"><h3><Icon name={icon} size={22}/>{label}</h3><p>서비스에 맞는 조건과 이용 방법을 안내합니다.</p></div></article>)}</div></Section></>;
+    <Section title={<>혜택소가 <em>약속</em>드립니다</>} className="center"><div className="card-grid columns-3">{homePromises.map(([label,icon,tile],index)=>{
+      const card=appearance?.[cardSlot('home',index)];
+      return <article className="service-card" key={label}><Art tile={tile} src={card?.image}/><div className="card-body"><h3><Icon name={icon} size={22}/>{card?.title??label}</h3><p>{card?.description??'서비스에 맞는 조건과 이용 방법을 안내합니다.'}</p></div></article>;
+    })}</div></Section></>;
 }
 function ServiceCards({data,slug,onInsurance}) {
   const {appearance}=useSite();
   const type=menu.find(item=>item[0]===slug)?.[1];
   return <Section title={data.section} className={slug==='telecom'?'':'center'}>
     <div className={'card-grid columns-'+(slug==='business'?6:slug==='insurance'||slug==='about'?5:slug==='telecom'?3:slug==='moving'?2:4)}>
-      {data.cards.map(([title,icon,detail,second,link],index)=><article className={'service-card '+(slug==='about'?'value-card':'')} key={title}>
-        {slug!=='about'&&<Art tile={serviceCardTile(slug,data,index)} src={appearance?.[cardSlot(slug,index)]?.image}/>}
+      {data.cards.map(([defaultTitle,icon,defaultDetail,defaultSecond,link],index)=>{
+        const card=appearance?.[cardSlot(slug,index)];
+        const title=card?.title??defaultTitle, detail=card?.description??defaultDetail, second=card?.secondary??defaultSecond;
+        return <article className={'service-card '+(slug==='about'?'value-card':'')} key={defaultTitle}>
+        {slug!=='about'&&<Art tile={serviceCardTile(slug,data,index)} src={card?.image}/>}
         <div className="card-body"><h3><span className="card-icon"><Icon name={icon} size={23}/></span>{title}</h3><p>{detail}</p>{second&&<p className="check-line"><Icon name="Check" size={15}/>{second}</p>}
-        {slug==='insurance'?<button className="btn" onClick={()=>onInsurance({title,detail,second})}>자세히 보기 ›</button>:slug!=='about'&&<Link className="btn" to={link||'/consult?service='+encodeURIComponent(slug==='telecom'?title:type)+'&detail='+encodeURIComponent(title)}>{link?'자세히 보기':'상담 신청'} ›</Link>}</div>
-      </article>)}
+        {slug==='insurance'?<button className="btn" onClick={()=>onInsurance({title,detail,second})}>자세히 보기 ›</button>:slug!=='about'&&<Link className="btn" to={link||'/consult?service='+encodeURIComponent(slug==='telecom'?defaultTitle:type)+'&detail='+encodeURIComponent(title)}>{link?'자세히 보기':'상담 신청'} ›</Link>}</div>
+      </article>;})}
     </div>
   </Section>;
 }
@@ -65,7 +72,7 @@ function AboutCompany({settings,image}) {
   return <><Section title="회사 소개"><div className="about-panel"><Art tile={0} src={image}/><div><h3>{settings.company||'혜택소'}</h3><p>통신, 렌탈, 이사·홈, 공간과 사업자 서비스를 연결합니다.</p><dl>{[['대표이사','representative'],['사업자등록번호','registration'],['주소','address']].filter(([,key])=>settings[key]).map(([label,key])=><div key={key}><dt>{label}</dt><dd>{settings[key]}</dd></div>)}</dl></div></div></Section><Steps title="사업 영역" items={['휴대폰·통신','인터넷·TV','생활 서비스','제휴·가맹']}/></>;
 }
 export function ServicePage({slug}) {
-  const {settings,appearance}=useSite(),name=menu.find(item=>item[0]===slug)?.[1];
+  const {settings,appearance,navigation}=useSite(),name=menuLabel(slug,navigation);
   const visual=appearance?.[heroSlot(slug)];
   const data=heroAppearance(pages[slug],visual);
   const [detail,setDetail]=useState(null);
@@ -79,10 +86,18 @@ export function ServicePage({slug}) {
       {data.features?.length>0&&<Section title={<>{name} 서비스가 <em>특별한 이유</em></>} className={slug==='insurance'?'benefits-dark center':'center'}><div className="benefit-box">{data.features.map((label,i)=><span key={i}><Icon name={['Handshake','BadgePercent','ShieldCheck','Headset'][i]}/><b>{label}</b></span>)}</div></Section>}
       {data.steps&&slug!=='franchise'&&<Steps title={name+' 진행 절차'} items={data.steps}/>}
       {slug==='rental'&&<RentalItems/>}
-      {slug==='insurance'?<div className="message wrap">보험은 상품 안내 화면을 제공하고 있습니다. 온라인 보험 상담 기능은 준비 중입니다.</div>:<Callout title={slug==='about'?'함께 성장할 파트너를 찾습니다':name+' 상담이 필요하신가요?'} service={slug==='about'?'제휴·입점':slug==='telecom'?'인터넷':name} phone={settings.phone}/>}
+      {slug==='insurance'?<div className="message wrap">보험은 상품 안내 화면을 제공하고 있습니다. 온라인 보험 상담 기능은 준비 중입니다.</div>:<Callout title={slug==='about'?'함께 성장할 파트너를 찾습니다':name+' 상담이 필요하신가요?'} service={slug==='about'?'제휴·입점':slug==='telecom'?'인터넷':menuLabel(slug)} phone={settings.phone}/>}
       {detail&&<Modal title={detail.title} onClose={()=>setDetail(null)}><p>{detail.detail}</p><p>{detail.second}</p><p className="message">보장과 가입 조건은 보험사와 개별 상품에 따라 달라집니다.</p></Modal>}
     </>}
+    <ServiceArticles slug={slug}/>
   </>;
+}
+function ServiceArticles({slug}) {
+  const {data}=useResource('/content/page?'+new URLSearchParams({category:'service:'+slug}));
+  if(!data?.length)return null;
+  return <Section title="추가 서비스 안내"><div className="card-grid columns-4">{data.map(item=><Link className="service-card card-body" key={item.id} to={'/board/page/'+item.id}>
+    {item.image&&<img loading="lazy" src={item.image} alt=""/>}<h3>{item.title}</h3>
+  </Link>)}</div></Section>;
 }
 function RentalItems() {
   const resource=useResource('/content/rental');
@@ -104,4 +119,4 @@ export function Legal({kind}) {
   const {settings}=useSite();
   return <><Breadcrumb title={kind==='privacy'?'개인정보처리방침':'이용약관'}/><Section title={kind==='privacy'?'개인정보처리방침':'이용약관'}><p className="preserve">{settings[kind]||'등록을 준비하고 있습니다.'}</p></Section></>;
 }
-export function Sitemap() {return <Section title="사이트맵"><ul>{menu.map(([path,label])=><li key={path}><Link to={'/'+path}>{label}</Link></li>)}<li><Link to="/phones">휴대폰 전체 모델</Link></li>{Object.entries(boardTitles).map(([key,title])=><li key={key}><Link to={'/board/'+key}>{title}</Link></li>)}</ul></Section>;}
+export function Sitemap() {const {navigation}=useSite();return <Section title="사이트맵"><ul>{siteMenu(navigation).map(([path,label])=><li key={path}><Link to={'/'+path}>{label}</Link></li>)}<li><Link to="/phones">휴대폰 전체 모델</Link></li>{Object.entries(boardTitles).map(([key,title])=><li key={key}><Link to={'/board/'+key}>{title}</Link></li>)}</ul></Section>;}

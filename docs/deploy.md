@@ -4,7 +4,7 @@
 
 1. 격리된 스테이징 MySQL DB 및 접속 계정을 생성합니다. DB 이름, 계정, 데이터 및 백업을 운영과 분리합니다.
 2. DATABASE_URL을 관리 환경에만 넣고 npm run db:migrate를 실행합니다. 초기 관리자 설정은 npm run admin:set으로 진행합니다. 예제 환경변수의 빈 값을 실제 저장소 파일에 채우지 않습니다.
-3. Cloudflare Hyperdrive로 스테이징 MySQL을 연결합니다. backend/wrangler.jsonc의 예제 설정을 바탕으로 Hyperdrive 바인딩 HYPERDRIVE 및 R2 바인딩 MEDIA를 추가하고 스테이징 Worker를 별도 이름으로 배포합니다. 미리보기와 운영 R2 버킷도 분리합니다. Worker를 공개 인터넷에서 직접 열 수 없도록 workers.dev와 previews 사용 여부를 확인하고 Pages Service Binding으로만 연결합니다.
+3. Cloudflare Hyperdrive로 스테이징 MySQL을 연결합니다. backend/wrangler.jsonc의 예제 설정을 바탕으로 Hyperdrive 바인딩 HYPERDRIVE를 추가하고 스테이징 Worker를 별도 이름으로 배포합니다. 기존 R2 업로드를 계속 조회해야 하는 환경에서는 기존 MEDIA 바인딩도 유지합니다. 새 업로드는 MySQL에 저장됩니다. Worker를 공개 인터넷에서 직접 열 수 없도록 workers.dev와 previews 사용 여부를 확인하고 Pages Service Binding으로만 연결합니다.
 4. APP_ORIGIN에 지정된 미리보기 HTTPS 도메인을 설정합니다. 상담 접수, 관리 로그인, 엑셀 적용은 출처 검증을 거칩니다. 지원금 외부 공급처를 사용하는 경우 Worker 설정에서 필요한 주소와 키를 분리하고 실패/만료 로그를 확인합니다. 오전 9시 KST 실행은 Worker cron에서 UTC 00:00으로 구성합니다.
 
 [Cloudflare Hyperdrive MySQL 예제](https://developers.cloudflare.com/hyperdrive/examples/connect-to-mysql/) · [Pages 미리보기 접근 제한](https://developers.cloudflare.com/pages/configuration/preview-deployments/)
@@ -13,7 +13,13 @@
 
 미리보기 Worker의 `HYETAEKSO_LOCAL_API`는 기존 Cloudflare Tunnel을 통해 이 PC의 `127.0.0.1:8789`에 있는 HTTP VPC 서비스만 호출합니다. 이 모드에서는 모든 DB 기반 데이터와 업로드에 혜택소 관리자 로그인이 필요합니다. Pages 대표 주소에서 이메일 인증을 제외하는 경우에도 배포별 주소의 Cloudflare Access 정책은 유지합니다. Worker에 MySQL 암호를 저장할 필요가 없습니다.
 
-PC 재시작 후에는 혜택소 프로젝트 폴더에서 `node --env-file=.env scripts/private-preview-api.mjs`를 실행하고 Cloudflare Tunnel 및 MySQL이 실행 중인지 확인합니다. `.env`에는 기존 로컬 MySQL 연결을 사용합니다. 이 방식은 미리보기용이며 PC가 잠자기 상태이거나 세 프로세스 중 하나가 멈추면 API에 접속할 수 없습니다. 새 업로드는 `.local/private-preview-media`에 저장됩니다. 이 모드에서는 DB 보존 기간 정리와 자동 지원금 갱신을 하는 Worker 예약 작업이 실행되지 않습니다. 기존 운영 DB와 데이터 보존 정책을 분리한 배포에는 위 Hyperdrive 방식을 사용합니다.
+PC 재시작 후에는 혜택소 프로젝트 폴더에서 `node --env-file=.env scripts/private-preview-api.mjs`를 실행하고 Cloudflare Tunnel 및 MySQL이 실행 중인지 확인합니다. `.env`에는 기존 로컬 MySQL 연결을 사용합니다. 이 방식은 미리보기용이며 PC가 잠자기 상태이거나 세 프로세스 중 하나가 멈추면 API에 접속할 수 없습니다. 이 모드에서는 DB 보존 기간 정리와 자동 지원금 갱신을 하는 Worker 예약 작업이 실행되지 않습니다. 기존 운영 DB와 데이터 보존 정책을 분리한 배포에는 위 Hyperdrive 방식을 사용합니다.
+
+### 사진과 동영상 이전
+
+업로드 파일은 `media_files`와 `media_chunks`에 저장됩니다. 서버를 옮길 때 `mysqldump --hex-blob`으로 두 테이블을 포함한 전체 MySQL DB를 내보내고 복원하면 `/api/media/…` 주소가 그대로 동작합니다. 코드에 포함된 기본 이미지는 새 서버에 앱을 배포하면 함께 제공됩니다. 외부 URL로 등록한 사진은 해당 URL에서 불러옵니다.
+
+파일 저장 폴더를 사용한 이전 설치에서는 배포 전에 기존 DB 연결로 `node --env-file=.env scripts/import-local-media.mjs`를 실행합니다. 이전에 별도 폴더를 썼다면 명령 뒤에 해당 경로를 전달합니다. 이미 이전한 파일은 내용이 같은지 확인하며, 참조 중인데 파일이 없는 경우 결과의 `missing`에 표시됩니다.
 
 ## Cloudflare Pages
 

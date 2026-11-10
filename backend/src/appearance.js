@@ -22,12 +22,13 @@ export async function appearance(db) {
 
 export async function saveAppearance(db, key, input) {
   const slot = getSlot(key);
-  const values = {image: pictureUrl(input.image)};
+  const values = slot.textOnly ? {} : {image: pictureUrl(input.image)};
   if (slot.mobile) values.mobile = pictureUrl(input.mobile);
   for (const [field, label, fallback, max] of slot.fields ?? []) {
     values[field] = text(input[field] ?? fallback ?? '', label, max, false);
   }
-  if (slot.fields && !values.headline && !values.subtitle) throw invalid('배너 제목을 한 줄 이상 입력해 주세요.');
+  if (key.endsWith('-hero') && !values.headline && !values.subtitle) throw invalid('배너 제목을 한 줄 이상 입력해 주세요.');
+  if (Object.hasOwn(values,'title') && !values.title) throw invalid('카드 제목을 입력해 주세요.');
   await replace(db, 'settings', prefix + key, {value: JSON.stringify(values)});
   return values;
 }

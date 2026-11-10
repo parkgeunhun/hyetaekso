@@ -1,8 +1,10 @@
 import { serveMedia } from './media-response.js';
+import { databaseMedia, mediaKey, mediaLimit, mediaTypes } from './media-store.js';
 import { ApiError, invalid, digest, token, matchesPassword, cookie, accountSession, requireOrigin, rateLimit, readJson, text, choice } from './security.js';
 import { listProducts, product, quote } from './catalog.js';
 import { definitions, saveRecord, settings, saveSettings } from './records.js';
 import { appearance, saveAppearance, resetAppearance } from './appearance.js';
+import { navigation, saveNavigation } from './navigation.js';
 import { registerPhone } from './phone-registration.js';
 import { lookupLead, submitLead, updateLead } from './leads.js';
 import { syncSupports } from './sync.js';
@@ -23,12 +25,11 @@ async function dashboard(db) {
   const [sync]=await db.all('SELECT status,message,created_at FROM sync_runs ORDER BY created_at DESC LIMIT 1');
   return {leads,products:products.count,overdue:overdue.count,sync};
 }
-async function media(request,env) {
-  if(!env.MEDIA) throw new ApiError(503,'media_unavailable','미디어 저장소 연결이 필요합니다.');
+async function media(request,store) {
   const contentType=request.headers.get('content-type');
-  const types={'image/jpeg':'jpg','image/png':'png','image/webp':'webp','image/gif':'gif','video/mp4':'mp4','video/webm':'webm'};
-  const extension=types[contentType],limit=contentType?.startsWith('video/')?24*1024*1024:8*1024*1024;
+  const extension=Object.keys(mediaTypes).find(key=>mediaTypes[key]===contentType);
   if(!extension||!request.body) throw invalid('JPG·PNG·WebP·GIF 또는 MP4·WebM 파일을 선택해 주세요.');
+  const limit=mediaLimit(contentType);
   const reader=request.body.getReader(),parts=[];
   let size=0;
   for(;;) {
@@ -47,7 +48,7 @@ async function media(request,env) {
   };
   if(!signature[extension]) throw invalid('파일의 실제 형식을 확인해 주세요.');
   const key=crypto.randomUUID()+'.'+extension;
-  await env.MEDIA.put(key,bytes,{httpMetadata:{contentType}});
+  await store.put(key,bytes,{httpMetadata:{contentType}});
   return json({url:'/api/media/'+key},201);
 }
 export async function handleApi(request,env,db) {
@@ -59,19 +60,28 @@ export async function handleApi(request,env,db) {
     if(env.PRIVATE_PREVIEW&&area!=='admin'&&!await accountSession(request,db)) {
       throw new ApiError(401,'login_required','미리보기 데이터를 보려면 관리자 로그인이 필요합니다.');
     }
-    if(area==='media'&&['GET','HEAD'].includes(method)&&/^[a-f0-9-]{36}\.(jpg|png|webp|gif|mp4|webm)$/.test(action??'')) {
-      const response=env.MEDIA&&await serveMedia(env.MEDIA,action,request);
+    if(area==='media'&&['GET','HEAD'].includes(method)&&mediaKey.test(action??'')) {
+      const response=await serveMedia(databaseMedia(db,env.MEDIA),action,request);
       if(!response)throw notFound();
       if(env.PRIVATE_PREVIEW)response.headers.set('Cache-Control','private, no-store');
       return response;
     }
-    if(area==='site'&&method==='GET') return json({settings:await settings(db),appearance:await appearance(db),banners:await db.all('SELECT * FROM banners WHERE enabled=1 ORDER BY sort_order,id LIMIT 12')});
+    if(area==='site'&&method==='GET') return json({settings:await settings(db),appearance:await appearance(db),navigation:await navigation(db),banners:await db.all('SELECT * FROM banners WHERE enabled=1 ORDER BY sort_order,id LIMIT 12')});
     if(area==='products'&&method==='GET') {
       if(action) return json(await product(db,action));
       return json({items:await listProducts(db),categories:await db.all('SELECT * FROM categories ORDER BY name'),links:await db.all(`SELECT pc.* FROM product_categories pc JOIN products p ON p.id=pc.product_id WHERE p.status='published'`)});
     }
     if(area==='content'&&method==='GET') {
       const kind=choice(action,kinds,'게시판');
+      if(id) {
+        const [item]=await db.all("SELECT * FROM content WHERE id=? AND kind=? AND status='published'",[text(id,'게시물',64),kind]);
+        if(!item)throw notFound();
+        return json(item);
+      }
+      if(kind==='page'&&searchParams.has('category')) {
+        const category=text(searchParams.get('category'),'분류',60);
+        return json(await db.all("SELECT * FROM content WHERE kind='page' AND category=? AND status='published' ORDER BY created_at DESC,id LIMIT 200",[category]));
+      }
       return json(await db.all("SELECT * FROM content WHERE kind=? AND status='published' ORDER BY created_at DESC LIMIT 200",[kind]));
     }
     if(area==='content'&&method==='POST'&&['qna','review'].includes(action)) {
@@ -103,7 +113,7 @@ export async function handleApi(request,env,db) {
     }
     if(action==='session'&&method==='GET')return json({username:session.username});
     if(action==='dashboard'&&method==='GET')return json(await dashboard(db));
-    if(action==='media'&&method==='POST')return await media(request,env);
+    if(action==='media'&&method==='POST')return await media(request,databaseMedia(db));
     if(action==='appearance') {
       if(method==='GET'&&!id) return json(await appearance(db));
       if(method==='PUT'&&id) {
@@ -114,6 +124,13 @@ export async function handleApi(request,env,db) {
       throw notFound();
     }
     if(action==='phone-registration'&&method==='POST'&&!id) return json(await registerPhone(db,await body(request)),201);
+    if(action==='navigation'&&!id) {
+      if(method==='GET')return json(await navigation(db));
+      if(method==='PUT') {
+        const {items}=await body(request);
+        return json(await db.transaction(()=>saveNavigation(db,items)));
+      }
+    }
     if(action==='settings') {
       if(method==='GET')return json(await settings(db));
       if(method==='PUT')return json(await db.transaction(async()=>saveSettings(db,await body(request))));
@@ -127,10 +144,11 @@ export async function handleApi(request,env,db) {
         const [row]=await db.all('SELECT * FROM leads WHERE id=?',[id]);if(!row)throw notFound();return json(row);
       }
       if(method==='GET') {
-        const state=searchParams.get('status'), query=searchParams.get('q')?.slice(0,100)??'';
+        const state=searchParams.get('status'), service=searchParams.get('service'), query=searchParams.get('q')?.slice(0,100)??'';
         const page=Math.max(0,Math.min(100000,Number.parseInt(searchParams.get('page')??'0',10)||0));
         const clauses=[],args=[];
         if(state){clauses.push('status=?');args.push(state);}
+        if(service){clauses.push('service=?');args.push(text(service,'상담 유형',60));}
         if(searchParams.get('overdue')==='1') {clauses.push('created_at<?');args.push(Date.now()-86400000);}
         if(query){clauses.push('(receipt LIKE ? OR name LIKE ? OR phone LIKE ?)');args.push(...Array(3).fill('%'+query+'%'));}
         const where=clauses.length?' WHERE '+clauses.join(' AND '):'';
@@ -149,6 +167,14 @@ export async function handleApi(request,env,db) {
     }
     if(!Object.hasOwn(definitions,action))throw notFound();
     if(method==='GET') {
+      if(action==='content'&&searchParams.has('kind')) {
+        const kind=choice(searchParams.get('kind'),kinds,'게시판');
+        if(kind==='page'&&searchParams.has('category')) {
+          const category=text(searchParams.get('category'),'분류',60);
+          return json(await db.all('SELECT * FROM content WHERE kind=? AND category=? ORDER BY created_at DESC,id LIMIT 2000',[kind,category]));
+        }
+        return json(await db.all('SELECT * FROM content WHERE kind=? ORDER BY created_at DESC,id LIMIT 2000',[kind]));
+      }
       if(action==='products') {
         const rows=await db.all('SELECT * FROM products ORDER BY sort_order,name LIMIT 2000');
         const links=await db.all('SELECT * FROM product_categories');

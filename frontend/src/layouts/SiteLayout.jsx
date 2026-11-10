@@ -1,6 +1,6 @@
 import { createContext,useContext,useEffect,useState } from 'react';
 import { Link,NavLink,Outlet,useLocation } from 'react-router-dom';
-import { menu } from '../pages/content.js';
+import { menuLabel, siteMenu } from '../../../shared/navigation.js';
 import { useResource } from '../hooks/data.js';
 import { Icon } from '../components/common.jsx';
 import { defaultBrandImage } from '../../../shared/site-appearance.js';
@@ -15,7 +15,7 @@ export function Logo({image}={}) {
 export default function SiteLayout() {
   const site=useResource('/site'), config=site.data??defaultSite;
   const location=useLocation(),[menuOpen,setMenuOpen]=useState(false);
-  const {settings}=config;
+  const {settings,navigation}=config;
   const favicon=config.appearance?.favicon?.image;
   useEffect(()=>{
     const icon=document.querySelector('link[rel="icon"]');
@@ -27,8 +27,8 @@ export default function SiteLayout() {
   useEffect(()=>{setMenuOpen(false);window.scrollTo(0,0);},[location.pathname]);
   useEffect(()=>{
     const key=location.pathname.split('/')[1];
-    document.title=(menu.find(item=>item[0]===key)?.[1]??({phones:'휴대폰',consult:'상담 신청',lookup:'상담 조회'}[key]||'생활에 필요한 혜택'))+' | 혜택소';
-  },[location.pathname]);
+    document.title=(menuLabel(key,navigation)??({phones:'휴대폰',consult:'상담 신청',lookup:'상담 조회'}[key]||'생활에 필요한 혜택'))+' | 혜택소';
+  },[location.pathname,navigation]);
   useEffect(()=>{
     if(settings.motion==='off'||!('IntersectionObserver' in window)||matchMedia('(prefers-reduced-motion: reduce)').matches)return;
     const observer=new IntersectionObserver(entries=>{
@@ -42,7 +42,7 @@ export default function SiteLayout() {
     <a className="skip" href="#content">본문으로 바로가기</a>
     <header className={'site-header '+(location.pathname==='/insurance'?'insurance-header':'')}>
       <div className="header-inner"><Logo/><button className="menu-toggle btn" aria-expanded={menuOpen} aria-controls="main-nav" onClick={()=>setMenuOpen(!menuOpen)}>{menuOpen?'닫기':'메뉴 ☰'}</button>
-      <nav id="main-nav" className={menuOpen?'nav-open':''} aria-label="주 메뉴">{menu.map(([path,label])=><NavLink key={path} to={'/'+path}>{label}</NavLink>)}</nav>
+      <nav id="main-nav" className={menuOpen?'nav-open':''} aria-label="주 메뉴">{siteMenu(navigation).map(([path,label])=><NavLink key={path} to={'/'+path}>{label}</NavLink>)}</nav>
       <div className="header-contact">{settings.phone&&<a href={'tel:'+settings.phone.replace(/[^+\d]/g,'')}><Icon name="Phone" size={17}/>{settings.phone}</a>}{settings.hours&&<small>{settings.hours}</small>}<Link className="btn primary" to="/consult">상담 신청</Link></div></div>
     </header>
     <main id="content" key={location.pathname} className={'page '+(settings.motion==='off'?'no-motion':'')}><Outlet/></main>

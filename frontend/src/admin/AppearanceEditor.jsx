@@ -22,7 +22,7 @@ function SlotEditor({slot, saved, onChanged}) {
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
   const fields = [
-    ['image', slot.mobile ? 'PC 사진' : '이미지', 'picture'],
+    ...(slot.textOnly ? [] : [['image', slot.mobile ? 'PC 사진' : '이미지', 'picture']]),
     ...(slot.mobile ? [['mobile', '모바일 사진 (선택)', 'picture']] : []),
     ...(slot.fields ?? []).map(([key, label]) => [key, label, key === 'description' ? 'area' : 'text'])
   ];
@@ -50,7 +50,7 @@ function SlotEditor({slot, saved, onChanged}) {
   return <form className="admin-panel form-stack" onSubmit={apply}>
     <fieldset className="editor-fieldset" disabled={busy}>
       <legend>{slot.label}</legend>
-      {!form.image&&<div className="appearance-preview">
+      {!slot.textOnly&&!form.image&&<div className="appearance-preview">
         <small>기본 이미지</small>
         {slot.image ? <img src={slot.image} alt="기본 이미지"/> : <Art tile={slot.tile}/>}
       </div>}
@@ -64,22 +64,23 @@ function SlotEditor({slot, saved, onChanged}) {
   </form>;
 }
 
-export default function AppearanceEditor({onChanged}) {
+export default function AppearanceEditor({onChanged, page}) {
   const resource = useResource('/admin/appearance', {keepData: true});
-  const [group, setGroup] = useState('홈');
+  const [selectedGroup, setGroup] = useState('홈');
   const [key, setKey] = useState('home-hero');
+  const group = page ?? selectedGroup;
   const slots = appearanceSlots.filter(slot => slot.group === group);
   const slot = slots.find(item => item.key === key) ?? slots[0];
 
   return <>
     <div className="admin-head">
-      <div><h1>사이트 이미지·배너 편집</h1><p>공개 화면의 사진과 상단 배너 문구를 위치별로 저장합니다.</p></div>
+      <div><h1>{page ? page+' 화면 편집' : '사이트 이미지·배너 편집'}</h1><p>공개 화면의 사진, 배너 문구와 서비스 안내를 편집합니다.</p></div>
       <Link className="btn" to={slot.path} target="_blank" rel="noopener">공개 화면 열기</Link>
     </div>
     <div className="admin-panel filters">
-      <label>편집할 화면<select aria-label="편집할 화면" value={group} onChange={e=>setGroup(e.target.value)}>
+      {!page&&<label>편집할 화면<select aria-label="편집할 화면" value={group} onChange={e=>setGroup(e.target.value)}>
         {groups.map(name=><option key={name}>{name}</option>)}
-      </select></label>
+      </select></label>}
       <label>편집할 위치<select aria-label="편집할 위치" value={slot.key} onChange={e=>setKey(e.target.value)}>
         {slots.map(item=><option key={item.key} value={item.key}>{item.label}</option>)}
       </select></label>
