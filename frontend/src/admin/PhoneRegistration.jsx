@@ -82,7 +82,7 @@ export default function PhoneRegistration({refs, onChanged}) {
     </section> : <form className="form-stack" onSubmit={save}>
       <fieldset className="admin-panel editor-fieldset" disabled={busy}>
         <legend>상품 정보</legend>
-        <EditorFields fields={entities.products.fields} form={product} setForm={setProduct} refs={refs}/>
+        <EditorFields fields={entities.products.fields} form={product} setForm={setProduct} refs={refs} mediaCategory="phone"/>
         {refs.manufacturers?.length===0&&<Link to="/admin/manufacturers">제조사 등록하기</Link>}
       </fieldset>
       {groups.map(group=>{
@@ -99,7 +99,7 @@ export default function PhoneRegistration({refs, onChanged}) {
               <option value="">선택</option>
               {options.capacities.map((capacity,i)=><option key={capacity.key} value={capacity.key}>{capacity.name||'용량 '+(i+1)}</option>)}
             </select></label>}
-            <EditorFields fields={fields[key]} form={row} setForm={updater=>update(key,row.key,updater)} refs={activeRefs}/>
+            <EditorFields fields={fields[key]} form={row} setForm={updater=>update(key,row.key,updater)} refs={activeRefs} mediaCategory="phone"/>
           </div>)}
           <button className="btn" type="button" onClick={()=>add(key)} disabled={disabled||options[key].length>=limit}>{addLabel}</button>
         </fieldset>;

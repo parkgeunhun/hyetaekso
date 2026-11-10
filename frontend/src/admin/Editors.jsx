@@ -5,22 +5,25 @@ import { useResource } from '../hooks/data.js';
 import { Modal,Status } from '../components/common.jsx';
 import { entities,recordTitle,settingsFields,optionLabels } from './fields.js';
 import { boardTitles } from '../pages/content.js';
+import { isVideoUrl, mediaAccept } from '../../../shared/media-library.js';
+import { MediaPicker, uploadMedia } from './ImageLibrary.jsx';
 
-const imageTypes='image/jpeg,image/png,image/webp,image/gif';
-const videoTypes='video/mp4,video/webm';
 export const mediaUploading=form=>Boolean(form?.querySelector('[data-uploading]'));
 
-function MediaField({label,value,update,type}) {
+function MediaField({label,value,update,type,category}) {
   const [busy,setBusy]=useState(false),[error,setError]=useState('');
+  const [picker,setPicker]=useState(false);
   async function upload(event) {
-    const file=event.target.files[0];if(!file)return;
+    const input=event.currentTarget,file=input.files[0];if(!file)return;
     setBusy(true);setError('');
-    try {const result=await api('/admin/media',{method:'POST',body:file,raw:true});update(result.url);}
-    catch(error){setError(error.message);}finally{setBusy(false);event.target.value='';}
+    try {const result=await uploadMedia(file,category);update(result.url);}
+    catch(error){setError(error.message);}finally{setBusy(false);input.value='';}
   }
-  const accept=type==='picture'?imageTypes:type==='video'?videoTypes:imageTypes+','+videoTypes;
+  const accept=mediaAccept[type]??mediaAccept.picture+','+mediaAccept.video;
   return <div className="media-field" data-uploading={busy?true:undefined}><label>{label}<input type="file" accept={accept} onChange={upload} disabled={busy}/></label>
-    {busy&&<p role="status">업로드 중…</p>}{value&&<div className="media-preview">{/\.(mp4|webm)(\?|$)/i.test(value)?<video controls preload="metadata" src={value}/>:<img src={value} alt={label+' 미리보기'}/>}<button type="button" className="btn" onClick={()=>update('')}>선택 해제</button></div>}
+    <button type="button" className="btn" disabled={busy} aria-label={label+' 보관함에서 선택'} onClick={()=>setPicker(true)}>보관함에서 선택</button>
+    {busy&&<p role="status">업로드 중…</p>}{value&&<div className="media-preview">{isVideoUrl(value)?<video controls preload="metadata" src={value}/>:<img src={value} alt={label+' 미리보기'}/>}<button type="button" className="btn" onClick={()=>update('')}>선택 해제</button></div>}
+    {picker&&<MediaPicker type={type} category={category} onClose={()=>setPicker(false)} onSelect={url=>{update(url);setError('');setPicker(false);}}/>}
     {error&&<p role="alert" className="message error">{error}</p>}</div>;
 }
 function ReferenceField({label,entity,value,update,refs}) {
@@ -32,12 +35,12 @@ function ReferenceField({label,entity,value,update,refs}) {
     return <option key={row.id} value={row.id}>{offerLabel||[related,recordTitle(row)].filter(Boolean).join(' · ')}</option>;
   })}</select></label>;
 }
-export function EditorFields({fields,form,setForm,refs={}}) {
+export function EditorFields({fields,form,setForm,refs={},mediaCategory='other'}) {
   return fields.map(([key,label,type])=>{
     const value=form[key],update=value=>setForm(prior=>({...prior,[key]:value}));
     if(type==='check')return <label key={key} className="checkbox"><input type="checkbox" checked={Boolean(value)} onChange={e=>update(+e.target.checked)}/>{label}</label>;
     if(type==='area')return <label key={key}>{label}<textarea rows="4" value={value??''} onChange={e=>update(e.target.value)}/></label>;
-    if(['media','picture','video'].includes(type))return <MediaField key={key} label={label} value={value} update={update} type={type}/>;
+    if(['media','picture','video'].includes(type))return <MediaField key={key} label={label} value={value} update={update} type={type} category={mediaCategory}/>;
     if(type==='multiple')return <fieldset key={key}><legend>{label}</legend>{refs.categories?.map(category=><label className="checkbox" key={category.id}><input type="checkbox" checked={(value||[]).includes(category.id)} onChange={e=>update(e.target.checked?[...(value||[]),category.id]:(value||[]).filter(id=>id!==category.id))}/>{category.name}</label>)}</fieldset>;
     if(Array.isArray(type))return <label key={key}>{label}<select value={value??type[0]} onChange={e=>update(e.target.value)}>{type.map(option=><option key={option} value={option}>{optionLabels[option]||option}</option>)}</select></label>;
     if(type in entities)return <ReferenceField key={key} label={label} entity={type} value={value} update={update} refs={refs}/>;
@@ -66,6 +69,7 @@ export function Records({entity,refs,onChanged,kind,category,general,title:custo
   const resource=useResource('/admin/'+entity+queryString);
   const title=customTitle??(kind?boardTitles[kind]:definition.title);
   const fields=definition.fields.filter(([key])=>!(kind&&key==='kind')&&!(category&&key==='category'));
+  const mediaCategory=entity==='banners'?'banner':['products','colors'].includes(entity)?'phone':category==='service:mobility'?'car':'other';
   const [form,setForm]=useState(null),[query,setQuery]=useState(''),[busy,setBusy]=useState(false),[error,setError]=useState(''),[remove,setRemove]=useState(null);
   const records=resource.data?.filter(item=>Object.values(item).some(value=>String(value).toLowerCase().includes(query.toLowerCase())))||[];
   async function save(event) {
@@ -90,7 +94,7 @@ export function Records({entity,refs,onChanged,kind,category,general,title:custo
   return <><div className="admin-head"><div><h1>{title}</h1><p>등록된 항목을 검색하고 변경할 수 있습니다.</p></div>{entity==='products'?<Link className="btn primary" to="/admin/phone-registration">휴대폰 등록</Link>:<button className="btn primary" onClick={()=>{setError('');setForm(blankFields(fields));}}>+ 새 항목</button>}</div>
     <div className="admin-panel"><label>목록 검색<input type="search" value={query} onChange={e=>setQuery(e.target.value)}/></label><Status resource={resource}/>
       <div className="table-scroll"><table><thead><tr><th>항목</th><th>관리 코드</th><th>관리</th></tr></thead><tbody>{records.map(item=><tr key={item.id}><td>{recordTitle(item)}</td><td>{item.id}</td><td>{item.mode==='feed'?<span>자동 갱신</span>:<><button className="btn" onClick={()=>{setError('');setForm(item);}}>수정</button> <button className="btn" onClick={()=>{setError('');setRemove(item);}}>삭제</button></>}</td></tr>)}</tbody></table></div>{resource.data&&!records.length&&<p className="message">항목이 없습니다.</p>}</div>
-    {form&&<Modal title={title+(form.id?' 수정':' 등록')} onClose={()=>{if(!busy)setForm(null);}}><form className="form-stack" onSubmit={save}><EditorFields fields={recordFields(entity,fields,form)} form={form} setForm={setForm} refs={refs}/>{error&&<p role="alert" className="message error">{error}</p>}<button className="btn primary" disabled={busy}>저장</button></form></Modal>}
+    {form&&<Modal title={title+(form.id?' 수정':' 등록')} onClose={()=>{if(!busy)setForm(null);}}><form className="form-stack" onSubmit={save}><EditorFields fields={recordFields(entity,fields,form)} form={form} setForm={setForm} refs={refs} mediaCategory={mediaCategory}/>{error&&<p role="alert" className="message error">{error}</p>}<button className="btn primary" disabled={busy}>저장</button></form></Modal>}
     {remove&&<Modal title="항목 삭제" onClose={()=>{if(!busy)setRemove(null);}}><p>{recordTitle(remove)} 항목을 삭제합니다.</p>{error&&<p role="alert" className="message error">{error}</p>}<button className="btn danger" onClick={deleteItem} disabled={busy}>삭제</button></Modal>}
   </>;
 }

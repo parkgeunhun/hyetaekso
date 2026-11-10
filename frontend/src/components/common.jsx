@@ -36,5 +36,5 @@ export function Status({resource}) {
 export function Modal({title,children,onClose}) {
   const dialog=useRef(null);
   useEffect(()=>{const node=dialog.current;node.showModal();return ()=>node.close();},[]);
-  return <dialog ref={dialog} onCancel={event=>{event.preventDefault();onClose();}} className="dialog"><header><h2>{title}</h2><button className="btn" onClick={onClose} aria-label="닫기">×</button></header>{children}</dialog>;
+  return <dialog ref={dialog} onCancel={event=>{event.preventDefault();event.stopPropagation();onClose();}} className="dialog"><header><h2>{title}</h2><button className="btn" type="button" onClick={onClose} aria-label="닫기">×</button></header>{children}</dialog>;
 }

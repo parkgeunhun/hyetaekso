@@ -1,5 +1,6 @@
 import { serveMedia } from './media-response.js';
 import { databaseMedia, mediaKey, mediaLimit, mediaTypes } from './media-store.js';
+import { listMedia, mediaDetails, updateMedia } from './media-library.js';
 import { ApiError, invalid, digest, token, matchesPassword, cookie, accountSession, requireOrigin, rateLimit, readJson, text, choice } from './security.js';
 import { listProducts, product, quote } from './catalog.js';
 import { definitions, saveRecord, settings, saveSettings } from './records.js';
@@ -25,7 +26,7 @@ async function dashboard(db) {
   const [sync]=await db.all('SELECT status,message,created_at FROM sync_runs ORDER BY created_at DESC LIMIT 1');
   return {leads,products:products.count,overdue:overdue.count,sync};
 }
-async function media(request,store) {
+async function media(request,store,params) {
   const contentType=request.headers.get('content-type');
   const extension=Object.keys(mediaTypes).find(key=>mediaTypes[key]===contentType);
   if(!extension||!request.body) throw invalid('JPG·PNG·WebP·GIF 또는 MP4·WebM 파일을 선택해 주세요.');
@@ -48,7 +49,8 @@ async function media(request,store) {
   };
   if(!signature[extension]) throw invalid('파일의 실제 형식을 확인해 주세요.');
   const key=crypto.randomUUID()+'.'+extension;
-  await store.put(key,bytes,{httpMetadata:{contentType}});
+  const library=params.has('name')||params.has('category') ? mediaDetails(params.get('name')??key,params.get('category')??'other') : undefined;
+  await store.put(key,bytes,{httpMetadata:{contentType},library});
   return json({url:'/api/media/'+key},201);
 }
 export async function handleApi(request,env,db) {
@@ -113,7 +115,11 @@ export async function handleApi(request,env,db) {
     }
     if(action==='session'&&method==='GET')return json({username:session.username});
     if(action==='dashboard'&&method==='GET')return json(await dashboard(db));
-    if(action==='media'&&method==='POST')return await media(request,databaseMedia(db));
+    if(action==='media') {
+      if(method==='GET'&&!id)return json(await listMedia(db,searchParams));
+      if(method==='POST'&&!id)return await media(request,databaseMedia(db),searchParams);
+      if(method==='PATCH'&&id)return json(await updateMedia(db,id,await body(request)));
+    }
     if(action==='appearance') {
       if(method==='GET'&&!id) return json(await appearance(db));
       if(method==='PUT'&&id) {

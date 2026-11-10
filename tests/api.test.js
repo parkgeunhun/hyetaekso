@@ -16,6 +16,7 @@ async function scenario(db) {
     return {status:response.status,response,data:type?.includes('application/json')?await response.json():await response.arrayBuffer()};
   };
   assert.equal((await request('/admin/products')).status,401);
+  assert.equal((await request('/admin/media')).status,401);
   const user='test-'+crypto.randomUUID().slice(0,8),password=crypto.randomUUID();
   await db.run('INSERT INTO accounts(id,username,password_hash) VALUES(?,?,?)',[crypto.randomUUID(),user,await passwordHash(password)]);
   assert.equal((await request('/admin/login','POST',{username:user,password},'https://wrong.test')).status,403);
@@ -27,6 +28,16 @@ async function scenario(db) {
   const cookie=login.response.headers.get('set-cookie');
   assert.match(cookie,/HttpOnly/);assert.match(cookie,/SameSite=Strict/);session=cookie.split(';')[0];
   assert.equal((await request('/admin/session')).data.username,user);
+  const mediaUpload=await handleApi(new Request(origin+'/api/admin/media?name=catalog.jpg&category=car',{
+    method:'POST',headers:{origin,cookie:session,'content-type':'image/jpeg'},body:new Uint8Array([255,216,255,217])
+  }),env,db);
+  assert.equal(mediaUpload.status,201);
+  const {url:mediaUrl}=await mediaUpload.json();
+  const {items:carMedia}= (await request('/admin/media?category=car&q=catalog')).data;
+  assert.equal(carMedia[0].url,mediaUrl);
+  assert.equal((await request('/admin/media/'+carMedia[0].id,'PATCH',{label:'배너용 사진',category:'banner'})).status,200);
+  assert.deepEqual((await request('/admin/media?category=car')).data.items,[]);
+  assert.equal((await request('/admin/media?category=banner&q='+encodeURIComponent('배너용 사진'))).data.items[0].url,mediaUrl);
   const manufacturer=(await request('/admin/manufacturers','POST',{name:'검증 제조사'})).data;
   const carrier=(await request('/admin/carriers','POST',{name:'검증 통신사'})).data;
   const product=(await request('/admin/products','POST',{manufacturer_id:manufacturer.id,name:'검증 휴대폰',status:'published'})).data;

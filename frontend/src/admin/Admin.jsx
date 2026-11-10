@@ -7,14 +7,17 @@ import { Icon,Status,Modal } from '../components/common.jsx';
 import { entities,leadStates } from './fields.js';
 import { Records,SiteSettings,Excel } from './Editors.jsx';
 import AppearanceEditor from './AppearanceEditor.jsx';
+import ImageLibrary from './ImageLibrary.jsx';
 import NavigationEditor from './NavigationEditor.jsx';
 import PhoneRegistration from './PhoneRegistration.jsx';
 import { boardTitles, menu, serviceTypes } from '../pages/content.js';
+import { mediaCategories } from '../../../shared/media-library.js';
 import './admin.css';
 
 const pageSections=Object.fromEntries([['page-home','홈'],...menu.map(([slug,label])=>['page-'+slug,label])]);
 const serviceSections=Object.fromEntries(menu.map(([slug,label])=>['service-'+slug,{slug,label}]));
 const boardSections=Object.fromEntries(Object.keys(boardTitles).map(kind=>['board-'+kind,kind]));
+const imageSections={images:'all',...Object.fromEntries(Object.keys(mediaCategories).map(category=>['images-'+category,category]))};
 const settingSections={
   settings:['motion'],
   contact:['company','phone','email','hours','address','registration','representative','kakao'],
@@ -29,6 +32,7 @@ const titles={
   ...pageSections,
   ...Object.fromEntries(Object.entries(serviceSections).map(([section,{label}])=>[section,label+' 추가 안내'])),
   ...Object.fromEntries(Object.entries(boardSections).map(([section,kind])=>[section,boardTitles[kind]])),
+  ...Object.fromEntries(Object.entries(imageSections).map(([section,category])=>[section,mediaCategories[category]??'전체 이미지'])),
   sync:'지원금 갱신',excel:'엑셀 일괄 작업',leads:'상담 접수',settings:'화면 움직임',
   appearance:'로고·탭 아이콘',navigation:'메뉴 관리',contact:'회사·고객센터 정보',privacy:'개인정보처리방침',
   terms:'이용약관','phone-registration':'휴대폰 등록','phone-guide':'휴대폰 안내 문구',
@@ -62,6 +66,7 @@ const groups=[
     ...(serviceTools[slug]??[]),
     ...(serviceConsultations[slug]??[]).map(consultation)
   ]})),
+  {label:'이미지',items:Object.keys(imageSections).map(section=>link(section))},
   {label:'공통 설정',items:[link('navigation'),link('appearance'),link('settings'),link('excel')]}
 ];
 
@@ -150,6 +155,7 @@ function Workspace({user,logout,site}) {
       {Object.hasOwn(pageSections,section)&&<AppearanceEditor key={section} page={pageSections[section]} onChanged={site.retry}/>}
       {servicePage&&<Records key={section} entity="content" kind="page" category={'service:'+servicePage.slug} title={titles[section]} onChanged={site.retry}/>}
       {section==='navigation'&&<NavigationEditor onChanged={site.retry}/>}
+      {Object.hasOwn(imageSections,section)&&<ImageLibrary key={section} category={imageSections[section]} title={titles[section]}/>}
       {section==='phone-registration'&&<PhoneRegistration refs={refs} onChanged={refresh}/>}
       {Object.hasOwn(settingSections,section)&&<SiteSettings key={section} only={settingSections[section]} title={titles[section]} onChanged={site.retry}/>}
       {section==='excel'&&<Excel/>}

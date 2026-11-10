@@ -11,3 +11,13 @@
 .admin-sidebar details details{margin-inline-start:11px}
 .admin-sidebar .admin-menu-close{display:none}
 @media(max-width:750px){.admin-sidebar.open .admin-menu-close{display:inline-flex;float:right;min-height:34px}}
+.media-field{display:grid;justify-items:start;gap:8px;min-width:0}
+.media-gallery{display:grid;gap:12px}
+.media-gallery-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(145px,1fr));gap:10px}
+.media-library-card{display:grid;align-content:start;gap:6px;min-width:0;padding:9px;border:1px solid var(--line);border-radius:8px;background:#fff}
+.media-library-preview{display:grid;place-items:center;aspect-ratio:4/3;overflow:hidden;border-radius:5px;background:#f5f6f8}
+.media-library-preview img,.media-library-preview video{width:100%;height:100%;object-fit:contain}
+.media-library-card strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.media-library-card small{color:var(--muted)}
+.media-library-card .btn{justify-self:start;min-height:34px;padding:5px 9px;font-size:13px}
+.media-gallery-filters>*{min-width:0}

@@ -16,13 +16,15 @@ export function databaseMedia(db, legacy) {
   const find = async key => (await db.all('SELECT size,content_type FROM media_files WHERE id=?', [key]))[0];
   const metadata = row => ({size: Number(row.size), httpMetadata: {contentType: row.content_type}});
   return {
-    async put(key, bytes, {httpMetadata: {contentType}}) {
+    async put(key, bytes, {httpMetadata: {contentType}, library}) {
       if (!mediaKey.test(key) || mediaTypes[key.split('.').pop()] !== contentType || !bytes.length || bytes.length > mediaLimit(contentType)) {
         throw new TypeError('Invalid media file');
       }
       const buffer = Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength);
       await db.transaction(async () => {
         await db.run('INSERT INTO media_files(id,content_type,size) VALUES(?,?,?)', [key,contentType,buffer.length]);
+        if (library) await db.run('INSERT INTO media_library(file_id,label,category,created_at) VALUES(?,?,?,?)',
+          [key,library.label,library.category,Date.now()]);
         for (let offset = 0; offset < buffer.length; offset += partSize) {
           const hex = buffer.subarray(offset, offset + partSize).toString('hex');
           await db.run('INSERT INTO media_chunks(file_id,part,payload) VALUES(?,?,UNHEX(?))', [key,offset / partSize,hex]);

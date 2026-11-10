@@ -52,7 +52,7 @@ function SlotEditor({slot, saved, onChanged}) {
         <small>기본 이미지</small>
         {slot.image ? <img src={slot.image} alt="기본 이미지"/> : <Art tile={slot.tile}/>}
       </div>}
-      <EditorFields fields={fields} form={form} setForm={setForm}/>
+      <EditorFields fields={fields} form={form} setForm={setForm} mediaCategory={slot.path==='/mobility'?'car':slot.key.endsWith('-hero')?'banner':'other'}/>
       <div className="actions">
         <button className="btn primary" type="submit">{busy ? '처리 중…' : '화면 설정 저장'}</button>
         <button className="btn" type="button" onClick={event=>apply(event, true)}>기본값 복원</button>

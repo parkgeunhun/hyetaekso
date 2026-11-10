@@ -104,6 +104,19 @@ test('administrator changes the public banner and registers a phone with pricing
   await expect(page.locator('.hero-home img')).toHaveAttribute('src',url);
   expect((await page.request.get(url)).headers()['content-type']).toBe('image/png');
 
+  await page.goto('/admin/images-banner');
+  await expect(page.getByText('banner.png',{exact:true})).toBeVisible();
+  await page.goto('/admin/banners');
+  await page.getByRole('button',{name:'+ 새 항목',exact:true}).click();
+  const slide=page.getByRole('dialog').filter({hasText:'홈 배너 슬라이드 등록'});
+  await slide.getByLabel('제목',{exact:true}).fill('보관함 사진을 사용한 배너');
+  await slide.getByRole('button',{name:'PC 사진 보관함에서 선택',exact:true}).click();
+  await page.getByRole('button',{name:'banner.png 선택',exact:true}).click();
+  await expect(slide.getByRole('img',{name:'PC 사진 미리보기'})).toHaveAttribute('src',url);
+  const slideSaved=page.waitForResponse(response=>new URL(response.url()).pathname==='/api/admin/banners'&&response.request().method()==='POST');
+  await slide.getByRole('button',{name:'저장',exact:true}).click();
+  expect((await (await slideSaved).json()).image).toBe(url);
+
   await page.goto('/admin/page-telecom');
   const adminMenu=page.getByRole('navigation',{name:'관리 메뉴'});
   const telecom=adminMenu.getByText('통신',{exact:true}).locator('..');
