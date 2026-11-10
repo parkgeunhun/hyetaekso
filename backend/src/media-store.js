@@ -60,8 +60,8 @@ export function databaseMedia(db, legacy) {
         if (library) await db.run('INSERT INTO media_library(file_id,label,category,created_at) VALUES(?,?,?,?)',
           [key,library.label,library.category,Date.now()]);
         for (let offset = 0; offset < buffer.length; offset += partSize) {
-          const hex = buffer.subarray(offset, offset + partSize).toString('hex');
-          await db.run('INSERT INTO media_chunks(file_id,part,payload) VALUES(?,?,UNHEX(?))', [key,offset / partSize,hex]);
+          const part = buffer.subarray(offset, offset + partSize);
+          await db.run('INSERT INTO media_chunks(file_id,part,payload) VALUES(?,?,?)', [key,offset / partSize,part]);
         }
       });
     },

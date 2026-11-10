@@ -20,9 +20,12 @@ test('database media preserves original bytes and ranges across parts',async()=>
   const db=await sqlite(':memory:');
   try {
     const key=crypto.randomUUID()+'.mp4', type='video/mp4';
-    const data=Buffer.alloc(650000);
-    for(let i=0;i<data.length;i++)data[i]=i%251;
-    await databaseMedia(db).put(key,data,{httpMetadata:{contentType:type}});
+    const data=Buffer.alloc(650002,0xff).subarray(1,-1);
+    for(let i=0;i<data.length;i++)data[i]=i%256;
+    const bytes=new Uint8Array(data.buffer,data.byteOffset,data.byteLength);
+    await databaseMedia(db).put(key,bytes,{httpMetadata:{contentType:type}});
+    const chunks=await db.all('SELECT typeof(payload) AS storage,length(payload) AS size FROM media_chunks WHERE file_id=? ORDER BY part',[key]);
+    assert.deepEqual(chunks.map(({storage,size})=>[storage,size]),[['blob',262144],['blob',262144],['blob',125712]]);
     const store=databaseMedia(db);
     const url='https://preview.example/api/media/'+key;
     const range=await serveMedia(store,key,new Request(url,{headers:{Range:'bytes=262140-262155'}}));
