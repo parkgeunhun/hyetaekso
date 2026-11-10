@@ -3,6 +3,7 @@ import {Readable} from 'node:stream';
 import {pipeline} from 'node:stream/promises';
 import {connectMysql} from '../backend/src/db.js';
 import {handleApi,json} from '../backend/src/api.js';
+import {privateSupportSyncPath,syncSupports} from '../backend/src/sync.js';
 import {localMedia} from './local-media.mjs';
 
 const {DATABASE_URL,PREVIEW_APP_ORIGIN,SUPPORT_FEED_URL}=process.env;
@@ -18,13 +19,20 @@ const server=createServer(async(incoming,outgoing)=>{
   let db;
   try {
     const url=new URL(incoming.url,origin);
-    if(url.origin!==origin.origin||!url.pathname.startsWith('/api/')) {
+    const scheduled=url.pathname===privateSupportSyncPath&&incoming.method==='POST';
+    if(url.origin!==origin.origin||(!scheduled&&!url.pathname.startsWith('/api/'))) {
       outgoing.writeHead(404).end();return;
     }
     const options={method:incoming.method,headers:incoming.headers};
     if(!['GET','HEAD'].includes(options.method))Object.assign(options,{body:Readable.toWeb(incoming),duplex:'half'});
     db=await connectMysql(DATABASE_URL);
-    const response=await handleApi(new Request(url,options),env,db);
+    let response;
+    if(scheduled) {
+      const report=await syncSupports(db,env);
+      response=json(report,report.status==='failed'?502:200);
+    } else {
+      response=await handleApi(new Request(url,options),env,db);
+    }
     const headers=Object.fromEntries(response.headers);
     if(response.headers.has('set-cookie'))headers['set-cookie']=response.headers.getSetCookie();
     outgoing.writeHead(response.status,headers);

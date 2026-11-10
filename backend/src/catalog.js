@@ -22,6 +22,9 @@ const offerSql=`SELECT o.*, cap.product_id,cap.name AS storage,cap.price,p.name 
 export async function offer(db,id) {
   return (await db.all(offerSql+' WHERE o.id=?',[id]))[0];
 }
+export function activeOffers(db) {
+  return db.all(offerSql+' WHERE p.enabled=1 AND o.extra<=cap.price ORDER BY o.id');
+}
 export async function product(db,id) {
   id=text(id,'휴대폰',64);
   const [item]=await db.all(`SELECT p.*,m.name AS manufacturer FROM products p

@@ -12,6 +12,7 @@ export function officialEndpoint(key,value) {
 }
 const codes={'신규가입':'11','번호이동':'20','기기변경':'31'};
 const carriers={SKT:'SKT',KT:'KT','LGU+':'LGU'};
+const carrierCode=name=>carriers[name.replace(/\s+/g,'').toUpperCase()];
 const identifier=/^[A-Za-z0-9_+.-]{1,100}$/;
 const integer=(value,max=100000000)=>{
   if(!['string','number'].includes(typeof value)||!/^\d{1,9}$/.test(String(value))||+value>max)throw new Error('금액 형식 불일치');
@@ -26,16 +27,18 @@ function date(value,now) {
   return iso;
 }
 export function officialRequest(row,config={}) {
-  const [source,model,network,maker]=row.source_key.split(':');
+  const parts=row.source_key.split(':');
+  const [source,model,network,maker]=parts;
   const plan=row.plan_source;
   if(!identifier.test(model??'')||!identifier.test(plan??'')||!codes[row.join_type])throw new Error('단말·요금제 연결 코드 누락');
-  if(source==='skt'&&row.carrier==='SKT'&&['5G','PHONE'].includes(network)&&!maker) {
+  if(source==='skt'&&parts.length===3&&row.carrier==='SKT'&&['5G','PHONE'].includes(network)) {
     const url=officialEndpoint('skt_notice',config.skt_notice);
     url.search=new URLSearchParams({modelNwType:network,saleMonth:'24',prodId:plan,saleYn:'N',order:'DISCOUNT',scrbTypCd:codes[row.join_type],dcMthdCd:'10'});
     return {source,model,plan,network,url:String(url)};
   }
-  if(source==='smartchoice'&&Object.hasOwn(carriers,row.carrier)&&['5G','LTE','3G'].includes(network)&&['삼성전자','애플','기타'].includes(maker)) {
-    return {source,model,plan,network,url:String(officialEndpoint('sc_price',config.sc_price)),body:new URLSearchParams({dan_Company:carriers[row.carrier],dan_Service:network,dan_Mau:maker,productName:model,dan_Plan_Code:plan}).toString()};
+  const carrier=carrierCode(row.carrier);
+  if(source==='smartchoice'&&parts.length===4&&carrier&&['5G','LTE','3G'].includes(network)&&['삼성전자','애플','기타'].includes(maker)) {
+    return {source,model,plan,network,carrier,url:String(officialEndpoint('sc_price',config.sc_price)),body:new URLSearchParams({dan_Company:carrier,dan_Service:network,dan_Mau:maker,productName:model,dan_Plan_Code:plan}).toString()};
   }
   throw new Error('지원금 매핑 형식 불일치');
 }
@@ -52,7 +55,7 @@ export function parseOfficial(row,target,raw,now) {
   }
   const result=JSON.parse(raw);
   const info=result?.[0]?.priceCompareInfo;
-  if(info?.dan_Company!==carriers[row.carrier]||info?.productName!==target.model||info?.dan_Service!==target.network||info?.dan_Plan_Code!==target.plan||capacity(info?.used_Phone_Capacity)!==row.storage)throw new Error('스마트초이스 단말 조건 불일치');
+  if(info?.dan_Company!==target.carrier||info?.productName!==target.model||info?.dan_Service!==target.network||info?.dan_Plan_Code!==target.plan||capacity(info?.used_Phone_Capacity)!==row.storage)throw new Error('스마트초이스 단말 조건 불일치');
   if(integer(info.planMonthVat)!==row.fee||integer(info.factoryPrice)!==row.price)throw new Error('스마트초이스 요금·출고가 불일치');
   const base=integer(info.dan_SupportMoney,row.price),transfer=integer(info.conv_SupportMoney,row.price-base);
   if(integer(info.sellingPrice)!==row.price-base||integer(info.dan_Conv_SellingPrice)!==row.price-base-transfer)throw new Error('스마트초이스 구매가 불일치');

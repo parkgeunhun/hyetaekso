@@ -13,7 +13,9 @@
 
 미리보기 Worker의 `HYETAEKSO_LOCAL_API`는 기존 Cloudflare Tunnel을 통해 이 PC의 `127.0.0.1:8789`에 있는 HTTP VPC 서비스만 호출합니다. 이 모드에서는 모든 DB 기반 데이터와 업로드에 혜택소 관리자 로그인이 필요합니다. Pages 대표 주소에서 이메일 인증을 제외하는 경우에도 배포별 주소의 Cloudflare Access 정책은 유지합니다. Worker에 MySQL 암호를 저장할 필요가 없습니다.
 
-PC 재시작 후에는 혜택소 프로젝트 폴더에서 `node --env-file=.env scripts/private-preview-api.mjs`를 실행하고 Cloudflare Tunnel 및 MySQL이 실행 중인지 확인합니다. `.env`에는 기존 로컬 MySQL 연결을 사용합니다. 이 방식은 미리보기용이며 PC가 잠자기 상태이거나 세 프로세스 중 하나가 멈추면 API에 접속할 수 없습니다. 이 모드에서는 DB 보존 기간 정리와 자동 지원금 갱신을 하는 Worker 예약 작업이 실행되지 않습니다. 기존 운영 DB와 데이터 보존 정책을 분리한 배포에는 위 Hyperdrive 방식을 사용합니다.
+PC 재시작 후에는 혜택소 프로젝트 폴더에서 `node --env-file=.env scripts/private-preview-api.mjs`를 실행하고 Cloudflare Tunnel 및 MySQL이 실행 중인지 확인합니다. `.env`에는 기존 로컬 MySQL 연결을 사용합니다. PC가 잠자기 상태이거나 세 프로세스 중 하나가 멈추면 API와 예약 갱신을 사용할 수 없습니다. 미리보기의 Worker는 오전 9시(한국시간)에 사설 API를 통해 지원금만 갱신합니다. DB 보존 기간 정리는 운영에서 별도로 실행합니다.
+
+지원금 갱신 화면에서 준비된 가격 조건 수를 확인합니다. 공개 조회용 단말 매핑과 외부 요금제 코드를 입력한 조건만 공식 조회를 시도합니다. 별도 JSON 피드를 쓰는 환경은 이 PC의 `.env`에 `SUPPORT_FEED_URL`을 설정하고 사설 API를 재시작합니다.
 
 ### 사진과 동영상 이전
 

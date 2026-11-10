@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import {officialEndpoint,officialRequest,parseOfficial,limitedText} from '../backend/src/carrier-support.js';
 import {product} from '../backend/src/catalog.js';
 import {saveRecord} from '../backend/src/records.js';
-import {syncSupports} from '../backend/src/sync.js';
+import {privateSupportSyncPath,supportSyncStatus,syncSupports} from '../backend/src/sync.js';
+import worker from '../backend/src/index.js';
 import {sqlite} from '../scripts/local-db.mjs';
 const today=Date.parse('2026-11-09T00:00:00Z');
 test('SKT applies only exact common subsidy and rejects a fallback plan or ambiguous model',()=>{
@@ -22,8 +23,46 @@ test('SmartChoice adds transfer support only for number transfer and checks both
   const body=info=>JSON.stringify([{priceCompareInfo:info}]);
   assert.equal(parseOfficial(row,request,body(item),today).amount,320000);
   assert.equal(parseOfficial({...row,join_type:'신규가입'},request,body(item),today).amount,230000);
+  const lgu={...row,carrier:'LG U+'};
+  const lguRequest=officialRequest(lgu);
+  assert.equal(new URLSearchParams(lguRequest.body).get('dan_Company'),'LGU');
+  assert.equal(parseOfficial(lgu,lguRequest,body({...item,dan_Company:'LGU'}),today).amount,320000);
   assert.throws(()=>parseOfficial(row,request,body({...item,dan_Conv_SellingPrice:1}),today));
   assert.throws(()=>officialEndpoint('sc_price','https://another.example/anything'));
+});
+
+test('reports missing mappings and plan codes without requesting public prices',async()=>{
+  const db=await sqlite(':memory:');
+  try {
+    const manufacturer=await saveRecord(db,'manufacturers',{name:'삼성'});
+    const phone=await saveRecord(db,'products',{manufacturer_id:manufacturer.id,name:'테스트 단말',status:'published'});
+    const cap=await saveRecord(db,'capacities',{product_id:phone.id,name:'256GB',price:1000000});
+    const carrier=await saveRecord(db,'carriers',{name:'SKT'});
+    const plan=await saveRecord(db,'plans',{carrier_id:carrier.id,name:'테스트 요금제',fee:59000,enabled:1});
+    await saveRecord(db,'offers',{capacity_id:cap.id,plan_id:plan.id,join_type:'기기변경'});
+    await saveRecord(db,'offers',{capacity_id:cap.id,plan_id:plan.id,join_type:'번호이동',source_key:'skt:A543:5G'});
+    await saveRecord(db,'offers',{capacity_id:cap.id,plan_id:plan.id,join_type:'신규가입',source_key:'custom'});
+    assert.deepEqual(await supportSyncStatus(db,{}),{total:3,ready:0,unlinked:1,missingPlan:1,invalidMapping:0,missingFeed:1});
+    let requested=false;
+    const result=await syncSupports(db,{},()=>{requested=true;});
+    assert.equal(requested,false);
+    assert.equal(result.status,'unconfigured');
+    assert.match(result.message,/3개 가격 조건/);
+    await saveRecord(db,'plans',{...plan,enabled:0},plan.id);
+    assert.equal((await supportSyncStatus(db,{})).total,0);
+  } finally {db.close();}
+});
+
+test('preview scheduled support sync uses its private route only',async()=>{
+  const requests=[];
+  const env={HYETAEKSO_LOCAL_API:{async fetch(request){requests.push(request);return new Response(null,{status:200});}}};
+  const blocked=await worker.fetch(new Request('https://preview.example'+privateSupportSyncPath,{method:'POST'}),env);
+  assert.equal(blocked.status,404);
+  assert.equal(requests.length,0);
+  await worker.scheduled({},env);
+  assert.equal(requests.length,1);
+  assert.equal(new URL(requests[0].url).pathname,privateSupportSyncPath);
+  assert.equal(requests[0].method,'POST');
 });
 test('rejects oversized or unsuccessful upstream responses',async()=>{
   assert.equal(await limitedText(new Response('hello'),5),'hello');

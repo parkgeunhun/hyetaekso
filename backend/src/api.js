@@ -9,7 +9,7 @@ import { appearance, saveAppearance, resetAppearance } from './appearance.js';
 import { navigation, saveNavigation } from './navigation.js';
 import { registerPhone } from './phone-registration.js';
 import { lookupLead, submitLead, updateLead } from './leads.js';
-import { syncSupports } from './sync.js';
+import { supportSyncStatus, syncSupports } from './sync.js';
 
 export const json=(data,status=200,headers={})=>Response.json(data,{status,headers:{'Cache-Control':'no-store','X-Content-Type-Options':'nosniff',...headers}});
 const notFound=()=>new ApiError(404,'not_found','페이지나 데이터를 찾을 수 없습니다.');
@@ -144,8 +144,9 @@ export async function handleApi(request,env,db) {
       if(method==='PUT')return json(await db.transaction(async()=>saveSettings(db,await body(request))));
     }
     if(action==='sync') {
-      if(method==='GET')return json(await db.all('SELECT * FROM sync_runs ORDER BY created_at DESC LIMIT 30'));
-      if(method==='POST')return json(await syncSupports(db,env));
+      if(method==='GET'&&id==='status')return json(await supportSyncStatus(db,env));
+      if(method==='GET'&&!id)return json(await db.all('SELECT * FROM sync_runs ORDER BY created_at DESC LIMIT 30'));
+      if(method==='POST'&&!id)return json(await syncSupports(db,env));
     }
     if(action==='leads') {
       if(method==='GET'&&id) {

@@ -83,7 +83,8 @@ function SidebarItem({item,isActive,onNavigate}) {
   const active=isActive(item);
   return <Link to={target} className={active?'active':undefined} aria-current={active?'page':undefined} onClick={onNavigate}>{item.label}</Link>;
 }
-const time=value=>value?new Date(Number(value)).toLocaleString('ko-KR'):'기록 없음';
+const time=(value,timeZone)=>value?new Date(Number(value)).toLocaleString('ko-KR',{timeZone}):'기록 없음';
+const syncLabels={unconfigured:'연결 설정 필요',success:'갱신 완료',partial:'일부 갱신',empty:'일치 조건 없음',failed:'갱신 실패'};
 function Login({onLogin,logo}) {
   const [error,setError]=useState(''),[busy,setBusy]=useState(false);
   async function submit(event) {
@@ -97,7 +98,7 @@ function Dashboard() {
   const resource=useResource('/admin/dashboard'),data=resource.data;
   const count=status=>data?.leads.find(row=>row.status===status)?.count??0;
   return <><div className="admin-head"><div><h1>대시보드</h1><p>상담 접수, 공개 상품과 지원금 상태를 확인하세요.</p></div><div className="actions"><Link className="btn primary" to="/admin/phone-registration">휴대폰 등록</Link><Link className="btn" to="/admin/navigation">메뉴 관리</Link><Link className="btn" to="/admin/banners">홈 배너</Link></div></div><Status resource={resource}/>
-    {data&&<><div className="admin-metrics">{[['새 상담',count('접수완료'),'/admin/leads?status=접수완료','ClipboardList'],['상담 중',count('상담중'),'/admin/leads?status=상담중','Headset'],['상담 완료',count('상담완료'),'/admin/leads?status=상담완료','Check'],['공개 휴대폰',data.products,'/admin/products','Smartphone'],['24시간 지난 새 상담',data.overdue,'/admin/leads?status=접수완료&overdue=1','Phone'],['최근 갱신',data.sync?.status??'기록 없음','/admin/sync','BadgePercent']].map(([label,value,url,icon])=><Link to={url} key={label}><span className="card-icon"><Icon name={icon} size={22}/></span><strong>{value}</strong><span>{label}</span></Link>)}</div>
+    {data&&<><div className="admin-metrics">{[['새 상담',count('접수완료'),'/admin/leads?status=접수완료','ClipboardList'],['상담 중',count('상담중'),'/admin/leads?status=상담중','Headset'],['상담 완료',count('상담완료'),'/admin/leads?status=상담완료','Check'],['공개 휴대폰',data.products,'/admin/products','Smartphone'],['24시간 지난 새 상담',data.overdue,'/admin/leads?status=접수완료&overdue=1','Phone'],['최근 갱신',syncLabels[data.sync?.status]??data.sync?.status??'기록 없음','/admin/sync','BadgePercent']].map(([label,value,url,icon])=><Link to={url} key={label}><span className="card-icon"><Icon name={icon} size={22}/></span><strong>{value}</strong><span>{label}</span></Link>)}</div>
     <div className="admin-panels"><section className="admin-panel"><h2>오늘 확인할 일</h2><p>처리 대기 상담 {count('접수완료')}건</p><Link to="/admin/leads">상담 목록 보기 ›</Link></section><section className="admin-panel"><h2>지원금 갱신</h2><p>{data.sync?.message??'지원금 갱신 기록이 없습니다.'}</p><Link to="/admin/sync">실행 기록 보기 ›</Link></section></div></>}
   </>;
 }
@@ -121,11 +122,40 @@ function Leads() {
 }
 function Sync() {
   const resource=useResource('/admin/sync'),[busy,setBusy]=useState(false),[message,setMessage]=useState('');
+  const status=useResource('/admin/sync/status'),summary=status.data;
   async function run() {
     setBusy(true);
-    try {const result=await api('/admin/sync',{method:'POST'});setMessage(result.message);resource.retry();}catch(error){setMessage(error.message);}finally{setBusy(false);}
+    try {const result=await api('/admin/sync',{method:'POST'});setMessage(result.message);resource.retry();status.retry();}catch(error){setMessage(error.message);}finally{setBusy(false);}
   }
-  return <><div className="admin-head"><h1>지원금 갱신</h1><button className="btn primary" disabled={busy} onClick={run}>{busy?'갱신 중…':'지금 갱신'}</button></div><section className="admin-panel"><p>예약 실행은 한국시간 오전 9시입니다. 수동 지원금은 유효한 동안 우선 적용합니다.</p><details><summary>공개 조회 연결 방법</summary><p>요금제에 외부 요금제 코드를 먼저 입력하세요. 가격 조건의 외부 키는 SKT의 경우 skt:모델코드:5G, 스마트초이스의 경우 smartchoice:모델코드:5G:삼성전자 형식입니다. 금액과 요금제가 맞지 않으면 반영하지 않습니다.</p></details>{message&&<p role="status">{message}</p>}<Status resource={resource}/><ul className="sync-list">{resource.data?.map(row=><li key={row.id}><strong>{row.status}</strong> {time(row.created_at)}<p>{row.message}</p></li>)}</ul></section></>;
+  return <>
+    <div className="admin-head"><h1>지원금 갱신</h1><button className="btn primary" disabled={busy||summary?.ready===0} onClick={run}>{busy?'갱신 중…':'지금 갱신'}</button></div>
+    <section className="admin-panel">
+      <h2>공개 조회 연결 상태</h2>
+      <p>매일 오전 9시(한국시간)에 연결된 가격 조건을 갱신합니다. 유효한 수동 지원금을 우선 적용합니다.</p>
+      <Status resource={status}/>
+      {summary&&<>
+        <p className="message">활성 가격 조건 {summary.total}개 중 자동 갱신 가능 {summary.ready}개</p>
+        <ul className="sync-list">
+          {summary.unlinked>0&&<li>공개 조회 매핑 없음 {summary.unlinked}개. <Link to="/admin/offers">가격 조건 열기</Link></li>}
+          {summary.missingPlan>0&&<li>외부 요금제 코드 없음 {summary.missingPlan}개. <Link to="/admin/plans">요금제 관리 열기</Link></li>}
+          {summary.invalidMapping>0&&<li>통신사 또는 매핑 형식 확인 필요 {summary.invalidMapping}개</li>}
+          {summary.missingFeed>0&&<li>별도 피드 연결 필요 {summary.missingFeed}개</li>}
+        </ul>
+      </>}
+      <details><summary>공개 조회 연결 방법</summary>
+        <ol>
+          <li><Link to="/admin/plans">요금제 관리</Link>에서 실제 통신사의 외부 요금제 코드를 입력합니다.</li>
+          <li><Link to="/admin/offers">가격 조건</Link>에서 단말을 연결합니다. SKT는 <code>skt:모델코드:5G</code>, 스마트초이스는 <code>smartchoice:모델코드:5G:삼성전자</code> 형식입니다.</li>
+        </ol>
+        <p>통신사, 용량, 출고가와 월정액이 공개 자료와 일치하는 조건만 반영됩니다. 예시 상품은 실제 단말과 요금제로 등록한 뒤 연결하세요.</p>
+      </details>
+    </section>
+    <section className="admin-panel">
+      <h2>최근 갱신 기록</h2>
+      {message&&<p role="status">{message}</p>}<Status resource={resource}/>
+      <ul className="sync-list">{resource.data?.map(row=><li key={row.id}><strong>{syncLabels[row.status]??row.status}</strong> {time(row.created_at,'Asia/Seoul')}<p>{row.message}</p></li>)}</ul>
+    </section>
+  </>;
 }
 function Workspace({user,logout,site}) {
   const {section='dashboard'}=useParams(),[refs,setRefs]=useState({}),[error,setError]=useState(''),[nav,setNav]=useState(false);
