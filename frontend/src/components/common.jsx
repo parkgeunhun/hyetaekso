@@ -6,18 +6,17 @@ import { Smartphone, Building2, Droplet, House, LampFloor, CarFront, BriefcaseBu
 
 const icons={Smartphone,Building2,Droplet,House,LampFloor,CarFront,BriefcaseBusiness,Handshake,Headset,ShieldCheck,Users,BadgePercent,Heart,Wifi,Tv,Refrigerator,WashingMachine,AirVent,Wind,Armchair,CookingPot,Truck,Sparkles,PanelsTopLeft,Store,Car,Zap,Phone,Printer,ChartNoAxesCombined,GraduationCap,HeartPulse,Baby,HeartHandshake,ClipboardList,Check,ArrowRight};
 export function Icon({name,size=28}) { const Component=icons[name]||Check;return <Component size={size} strokeWidth={1.7} aria-hidden="true"/>; }
-export function Art({tile=0,className='',src,mobile}) {
+export function Art({tile=0,className='',src}) {
   return <div aria-hidden="true" className={'service-art '+(src?'service-art-custom ':'')+className} style={{backgroundPosition:(tile%3)*50+'% '+Math.floor(tile/3)*50+'%'}}>
-    {(src||mobile)&&<picture className={src?undefined:'art-mobile-only'}>
-      {mobile&&<source media="(max-width:600px)" srcSet={mobile}/>}
-      <img src={src||undefined} alt=""/>
+    {src&&<picture>
+      <img src={src} alt=""/>
     </picture>}
   </div>;
 }
-export function Hero({data,children,home=false,image,mobile,editor}) {
+export function Hero({data,children,home=false,image,editor}) {
   const layered=Array.isArray(data.layers);
   return <section className={'hero '+(data.dark?'hero-dark ':'')+(home?'hero-home ':'')+(layered?'hero-layered':'')}>
-    {home?<picture className="home-scene">{mobile&&<source media="(max-width:600px)" srcSet={mobile}/>}<img src={image||'/media/showroom.png'} alt=""/></picture>:<Art tile={data.tile} src={image} mobile={mobile}/>}
+    {home?<picture className="home-scene"><img src={image||'/media/showroom.png'} alt=""/></picture>:<Art tile={data.tile} src={image}/>}
     <div className="hero-shade"/>
     {layered&&<BannerTextPlane className="hero-text-plane" layers={data.layers} editor={editor} headingFallback={data.title.join(' ')}/>}
     <div className="hero-inner wrap">

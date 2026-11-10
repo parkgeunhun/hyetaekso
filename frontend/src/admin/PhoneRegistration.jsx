@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../services/api.js';
-import { blankFields, EditorFields, mediaUploading } from './Editors.jsx';
+import { blankFields, EditorFields } from './Editors.jsx';
 import { entities } from './fields.js';
 
 const groups = [
@@ -51,10 +51,6 @@ export default function PhoneRegistration({refs, onChanged}) {
 
   async function save(event) {
     event.preventDefault();
-    if (mediaUploading(event.currentTarget)) {
-      setError('파일 업로드가 끝난 후 저장해 주세요.');
-      return;
-    }
     setBusy(true);
     setError('');
     requestKey.current ??= crypto.randomUUID();

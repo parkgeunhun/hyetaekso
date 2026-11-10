@@ -21,14 +21,14 @@ export function Banner() {
   if(!active) {
     const visual=appearance?.[heroSlot('home')];
     const fallback=heroAppearance(homeHero,visual);
-    return <Hero data={fallback} image={visual?.image} mobile={visual?.mobile} home>
+    return <Hero data={fallback} image={visual?.image || visual?.mobile} home>
       {(fallback.primary||fallback.secondary)&&<div className="actions">
         {fallback.primary&&<Link className="btn primary" to="/consult">{fallback.primary}</Link>}
         {fallback.secondary&&<Link className="btn light-outline" to="/franchise">{fallback.secondary}</Link>}
       </div>}
     </Hero>;
   }
-  const media=<BannerMedia image={active.image} mobile={active.mobile} kind={active.kind} fit={active.fit} alt={active.alt} playing={!reduced}/>;
+  const media=<BannerMedia image={active.image || (active.kind==='image'?active.mobile:'')} kind={active.kind} fit={active.fit} alt={active.alt} playing={!reduced}/>;
   const layered=Array.isArray(active.layers);
   return <section className={'banner '+(layered?'banner-layered':'')} aria-label="홈 배너" onMouseEnter={()=>hovering(true)} onMouseLeave={()=>hovering(false)} onFocus={()=>hovering(true)} onBlur={e=>{if(!e.currentTarget.contains(e.relatedTarget))hovering(false);}}>
     {active.link&&active.kind!=='video'?<a href={active.link}>{media}</a>:media}
@@ -79,7 +79,7 @@ export function ServicePage({slug}) {
   const visual=appearance?.[heroSlot(slug)];
   const data=heroAppearance(pages[slug],visual);
   const [detail,setDetail]=useState(null);
-  return <><Breadcrumb title={name}/><Hero data={data} image={visual?.image} mobile={visual?.mobile}/>
+  return <><Breadcrumb title={name}/><Hero data={data} image={visual?.image || visual?.mobile}/>
     {slug==='support'?<SupportBody/>:<>
       {slug==='mobility'&&<MobilityBrands/>}
       {slug==='franchise'&&<Steps title="가맹 진행 절차" items={data.steps}/>}

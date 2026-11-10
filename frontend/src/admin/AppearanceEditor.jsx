@@ -4,17 +4,17 @@ import { appearanceSlots, heroAppearance } from '../../../shared/site-appearance
 import { api } from '../services/api.js';
 import { useResource } from '../hooks/data.js';
 import { Art, Status } from '../components/common.jsx';
-import { EditorFields, mediaUploading } from './Editors.jsx';
+import { EditorFields } from './Editors.jsx';
 import BannerTextEditor from './BannerTextEditor.jsx';
 
 const bannerCopyFields = new Set(['kicker','headline','subtitle','description']);
 
 function initialForm(slot, values) {
   return {
-    image: '',
-    ...(slot.mobile ? {mobile: ''} : {}),
     ...Object.fromEntries((slot.fields ?? []).map(([key, , fallback]) => [key, fallback ?? ''])),
-    ...values
+    ...values,
+    image: values?.image || values?.mobile || '',
+    ...(slot.mobile ? {mobile: ''} : {})
   };
 }
 
@@ -22,20 +22,13 @@ function SlotEditor({slot, saved, onChanged}) {
   const [form, setForm] = useState(() => initialForm(slot, saved));
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
-  const mediaFields = [
-    ...(slot.textOnly ? [] : [['image', slot.mobile ? 'PC 사진' : '이미지', 'picture']]),
-    ...(slot.mobile ? [['mobile', '모바일 사진 (선택)', 'picture']] : [])
-  ];
+  const mediaFields = slot.textOnly ? [] : [['image', slot.hero ? '배너 이미지' : '이미지', 'picture']];
   const otherFields = (slot.fields ?? []).filter(([key])=>!slot.hero||!bannerCopyFields.has(key))
     .map(([key, label]) => [key, label, key === 'description' ? 'area' : 'text']);
   const mediaCategory=slot.path==='/mobility'?'car':slot.hero?'banner':'other';
 
   async function apply(event, reset = false) {
     event.preventDefault();
-    if (mediaUploading(event.currentTarget.form ?? event.currentTarget)) {
-      setResult({error: true, message: '파일 업로드가 끝난 후 저장해 주세요.'});
-      return;
-    }
     setBusy(true);
     setResult(null);
     try {

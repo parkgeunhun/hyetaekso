@@ -8,7 +8,7 @@ export const entities={
   plans:{title:'요금제',fields:[['carrier_id','통신사','carriers'],['name','요금제'],['fee','월정액','number'],['enabled','사용','check'],['source_key','외부 요금제 코드']]},
   offers:{title:'가격 조건',fields:[['capacity_id','용량','capacities'],['plan_id','요금제','plans'],['join_type','가입 유형',['기기변경','신규가입','번호이동']],['extra','추가 지원금','number'],['source_key','공개 조회 매핑 또는 피드 키']]},
   supports:{title:'공통지원금',fields:[['offer_id','상품 조건','offers'],['amount','공통지원금','number'],['source','입력 근거'],['expires_at','만료 일시','date']]},
-  banners:{title:'홈 배너 슬라이드',fields:[['title','배너 관리 이름'],['kind','파일 종류',['image','video']],['image','PC 사진','picture'],['mobile','모바일 사진','picture'],['alt','이미지 대체 문구'],['link','이동 주소'],['fit','화면에 맞추기',['cover','contain','fill']],['intro','배너 문구 표시','check'],['enabled','배너 사용','check'],['sort_order','표시 순서','number']]},
+  banners:{title:'홈 배너 슬라이드',fields:[['title','배너 관리 이름'],['kind','파일 종류',['image','video']],['image','배너 이미지','picture'],['alt','이미지 대체 문구'],['link','이동 주소'],['fit','화면에 맞추기',['cover','contain','fill']],['intro','배너 문구 표시','check'],['enabled','배너 사용','check'],['sort_order','표시 순서','number']]},
   content:{title:'공지·콘텐츠',fields:[['kind','콘텐츠 종류',['notice','faq','review','qna','rental','page']],['category','분류'],['title','제목'],['body','본문','area'],['image','이미지','picture'],['status','공개 상태',['draft','published']]]}
 };
 export const settingsFields=[

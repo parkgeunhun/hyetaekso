@@ -1,12 +1,11 @@
 import { bannerLineBreaks } from '../../../shared/banner-text.js';
 import './banner-canvas.css';
 
-export function BannerMedia({image,mobile,kind,fit,alt,playing=false}) {
-  if (!image&&!mobile) return null;
+export function BannerMedia({image,kind,fit,alt,playing=false}) {
+  if (!image) return null;
   if (kind==='video') return <video src={image} style={{objectFit:fit}} muted playsInline autoPlay={playing} loop controls/>;
   return <picture>
-    {mobile&&<source media="(max-width:600px)" srcSet={mobile}/>}
-    <img src={image||mobile} alt={alt||''} style={{objectFit:fit}}/>
+    <img src={image} alt={alt||''} style={{objectFit:fit}}/>
   </picture>;
 }
 

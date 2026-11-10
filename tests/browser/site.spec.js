@@ -93,8 +93,28 @@ test('administrator changes the public banner and registers a phone with pricing
   await page.getByLabel('비밀번호').fill(process.env.BROWSER_TEST_PASSWORD);
   await page.getByRole('button',{name:'로그인',exact:true}).click();
   await expect(page.getByRole('combobox',{name:'편집할 위치'}).locator('option')).toHaveText(['헤더·푸터 로고','브라우저 탭 아이콘']);
+  await expect(page.getByRole('button',{name:'이미지 보관함에서 선택',exact:true})).toBeVisible();
+  await expect(page.locator('input[type="file"]')).toHaveCount(0);
+  await page.goto('/admin/images-banner');
+  const uploaded=page.waitForResponse(response=>new URL(response.url()).pathname==='/api/admin/media'&&response.request().method()==='POST');
+  await page.getByLabel('파일 업로드',{exact:true}).setInputFiles({
+    name:'banner.png',mimeType:'image/png',
+    buffer:Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+X2ZsAAAAASUVORK5CYII=','base64')
+  });
+  const upload=await uploaded;
+  expect(upload.status()).toBe(201);
+  const {url}=await upload.json();
+  await expect(page.getByText('banner.png',{exact:true})).toBeVisible();
   await page.goto('/admin/page-home');
+  await expect(page.locator('input[type="file"]')).toHaveCount(0);
+  await expect(page.getByRole('button',{name:/보관함에서 선택/})).toHaveCount(1);
+  await page.getByRole('button',{name:'배너 이미지 보관함에서 선택',exact:true}).click();
+  await page.getByRole('button',{name:'banner.png 선택',exact:true}).click();
+  await expect(page.getByRole('img',{name:'배너 이미지 미리보기'})).toHaveAttribute('src',url);
   const textEditor=page.getByRole('region',{name:'배너 텍스트 편집기'});
+  await textEditor.getByRole('button',{name:'휴대폰',exact:true}).click();
+  await expect(textEditor.locator('.home-scene img')).toHaveAttribute('src',url);
+  await textEditor.getByRole('button',{name:'넓게',exact:true}).click();
   await textEditor.getByRole('combobox',{name:/편집할 문구/}).selectOption('headline');
   await textEditor.getByLabel('문구 내용',{exact:true}).fill('관리자에서 바꾼 홈 배너\\r\\n두 번째 줄');
   await textEditor.getByLabel('글자 색상',{exact:true}).fill('#2457a8');
@@ -111,15 +131,6 @@ test('administrator changes the public banner and registers a phone with pricing
   await page.mouse.up();
   const savedX=await textEditor.getByLabel('X 좌표 (%)',{exact:true}).inputValue();
   expect(Number(savedX)).toBeGreaterThan(15);
-  const uploaded=page.waitForResponse(response=>new URL(response.url()).pathname==='/api/admin/media'&&response.request().method()==='POST');
-  await page.getByLabel('PC 사진',{exact:true}).setInputFiles({
-    name:'banner.png',mimeType:'image/png',
-    buffer:Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+X2ZsAAAAASUVORK5CYII=','base64')
-  });
-  const upload=await uploaded;
-  expect(upload.status()).toBe(201);
-  const {url}=await upload.json();
-  await expect(page.getByRole('img',{name:'PC 사진 미리보기'})).toHaveAttribute('src',url);
   await page.getByRole('button',{name:'화면 설정 저장'}).click();
   await expect(page.getByText('공개 화면에 반영했습니다.')).toBeVisible();
   await page.goto('/');
@@ -129,6 +140,10 @@ test('administrator changes the public banner and registers a phone with pricing
   expect(await heading.textContent()).toContain('\n두 번째 줄');
   expect(await heading.evaluate(node=>node.style.left)).toBe(savedX+'%');
   await expect(page.locator('.hero-home img')).toHaveAttribute('src',url);
+  const desktopImage=await page.locator('.hero-home img').evaluate(image=>image.currentSrc);
+  await page.setViewportSize({width:390,height:844});
+  expect(await page.locator('.hero-home img').evaluate(image=>image.currentSrc)).toBe(desktopImage);
+  await page.setViewportSize({width:1280,height:900});
   expect((await page.request.get(url)).headers()['content-type']).toBe('image/png');
 
   await page.goto('/admin/images-banner');
@@ -137,9 +152,11 @@ test('administrator changes the public banner and registers a phone with pricing
   await page.getByRole('button',{name:'+ 새 항목',exact:true}).click();
   const slide=page.getByRole('dialog').filter({hasText:'홈 배너 슬라이드 등록'});
   await slide.getByLabel('배너 관리 이름',{exact:true}).fill('보관함 사진을 사용한 배너');
-  await slide.getByRole('button',{name:'PC 사진 보관함에서 선택',exact:true}).click();
+  await expect(slide.locator('input[type="file"]')).toHaveCount(0);
+  await expect(slide.getByRole('button',{name:/보관함에서 선택/})).toHaveCount(1);
+  await slide.getByRole('button',{name:'배너 이미지 보관함에서 선택',exact:true}).click();
   await page.getByRole('button',{name:'banner.png 선택',exact:true}).click();
-  await expect(slide.getByRole('img',{name:'PC 사진 미리보기'})).toHaveAttribute('src',url);
+  await expect(slide.getByRole('img',{name:'배너 이미지 미리보기'})).toHaveAttribute('src',url);
   await slide.getByLabel('배너 문구 표시',{exact:true}).check();
   await slide.getByLabel('문구 내용',{exact:true}).fill('슬라이드 문구');
   const slideSaved=page.waitForResponse(response=>new URL(response.url()).pathname==='/api/admin/banners'&&response.request().method()==='POST');
@@ -161,6 +178,9 @@ test('administrator changes the public banner and registers a phone with pricing
   await page.getByLabel('용량',{exact:true}).fill('256GB');
   await page.getByRole('spinbutton',{name:'출고가',exact:true}).fill('1200000');
   await page.getByRole('button',{name:'색상 추가',exact:true}).click();
+  await expect(page.locator('input[type="file"]')).toHaveCount(0);
+  await expect(page.getByRole('button',{name:'대표 이미지 보관함에서 선택',exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:'색상 이미지 보관함에서 선택',exact:true})).toBeVisible();
   await page.getByLabel('색상',{exact:true}).fill('블랙');
   await page.getByRole('button',{name:'가격 조건 추가',exact:true}).click();
   await page.getByLabel('연결할 용량').selectOption({index:1});

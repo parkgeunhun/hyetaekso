@@ -61,8 +61,6 @@ em{color:var(--accent-text);font-style:normal}
 .service-art-custom{background-image:none}
 .service-art picture{position:absolute;inset:0}
 .service-art img,.home-scene img{width:100%;height:100%;object-fit:cover}
-.service-art .art-mobile-only{display:none}
-@media(max-width:600px){.service-art .art-mobile-only{display:block}}
 .hero>.service-art,.home-scene,.hero-shade{position:absolute;inset:0;z-index:-1;aspect-ratio:auto}
 .hero>.service-art{left:39%}
 .home-scene{width:100%;height:100%}
