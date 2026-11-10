@@ -43,6 +43,7 @@ function hero(slug, group, data) {
     label: slug === 'home' ? '기본 홈 배너' : '상단 배너',
     path: slug === 'home' ? '/' : '/' + slug,
     tile: data.tile,
+    hero: data,
     image: slug === 'home' ? '/media/showroom.png' : '',
     mobile: true,
     fields
@@ -80,6 +81,7 @@ export function heroAppearance(data, values = {}) {
     kicker: values.kicker ?? data.kicker,
     title: [values.headline ?? data.title[0], values.subtitle ?? data.title[1]],
     description: values.description ?? data.description,
+    layers: values.layers,
     features: data.features?.map((label, index) => values['feature' + index] ?? label).filter(Boolean),
     section: values.section ?? data.section,
     steps: data.steps?.map((label, index) => values['step' + index] ?? label).filter(Boolean),

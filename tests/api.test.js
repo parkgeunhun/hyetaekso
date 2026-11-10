@@ -85,6 +85,20 @@ async function scenario(db) {
   const publicAppearance=(await request('/site')).data.appearance['home-hero'];
   assert.equal(publicAppearance.headline,'관리자 편집 배너');
   assert.equal(publicAppearance.mobile,'/media/services.png');
+  const layer={id:'custom-heading',text:'첫 문구\\r\\n둘째 줄',x:15,y:24,size:46,color:'#2457a8',bold:true,heading:true};
+  assert.equal((await request('/admin/appearance/home-hero','PUT',{layers:[{...layer,x:101}]})).status,400);
+  assert.equal((await request('/admin/appearance/home-hero','PUT',{layers:[{...layer,color:'red'}]})).status,400);
+  const heroWithLayout=await request('/admin/appearance/home-hero','PUT',{...publicAppearance,layers:[layer]});
+  assert.equal(heroWithLayout.status,200);
+  const normalized={...layer,text:'첫 문구\n둘째 줄'};
+  assert.deepEqual((await request('/site')).data.appearance['home-hero'].layers,[normalized]);
+  const oldBanner={...site.banners[0],intro:1};
+  assert.equal((await request('/admin/banners/'+oldBanner.id,'PUT',{...oldBanner,layers:[layer]})).status,200);
+  assert.deepEqual((await request('/site')).data.banners[0].layers,[normalized]);
+  assert.equal((await request('/admin/banners/'+oldBanner.id,'PUT',oldBanner)).status,200);
+  assert.deepEqual((await request('/admin/banners')).data[0].layers,[normalized]);
+  assert.equal((await request('/admin/banners/'+oldBanner.id,'PUT',{...oldBanner,layers:null})).status,200);
+  assert.equal((await request('/site')).data.banners[0].layers,undefined);
   assert.equal((await request('/admin/appearance/home-hero','DELETE')).status,200);
   assert.equal((await request('/site')).data.appearance['home-hero'],undefined);
   const secondMedia=await handleApi(new Request(origin+'/api/admin/media',{

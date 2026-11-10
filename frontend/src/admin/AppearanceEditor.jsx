@@ -1,10 +1,13 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { appearanceSlots } from '../../../shared/site-appearance.js';
+import { appearanceSlots, heroAppearance } from '../../../shared/site-appearance.js';
 import { api } from '../services/api.js';
 import { useResource } from '../hooks/data.js';
 import { Art, Status } from '../components/common.jsx';
 import { EditorFields, mediaUploading } from './Editors.jsx';
+import BannerTextEditor from './BannerTextEditor.jsx';
+
+const bannerCopyFields = new Set(['kicker','headline','subtitle','description']);
 
 function initialForm(slot, values) {
   return {
@@ -19,11 +22,13 @@ function SlotEditor({slot, saved, onChanged}) {
   const [form, setForm] = useState(() => initialForm(slot, saved));
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
-  const fields = [
+  const mediaFields = [
     ...(slot.textOnly ? [] : [['image', slot.mobile ? 'PC 사진' : '이미지', 'picture']]),
-    ...(slot.mobile ? [['mobile', '모바일 사진 (선택)', 'picture']] : []),
-    ...(slot.fields ?? []).map(([key, label]) => [key, label, key === 'description' ? 'area' : 'text'])
+    ...(slot.mobile ? [['mobile', '모바일 사진 (선택)', 'picture']] : [])
   ];
+  const otherFields = (slot.fields ?? []).filter(([key])=>!slot.hero||!bannerCopyFields.has(key))
+    .map(([key, label]) => [key, label, key === 'description' ? 'area' : 'text']);
+  const mediaCategory=slot.path==='/mobility'?'car':slot.hero?'banner':'other';
 
   async function apply(event, reset = false) {
     event.preventDefault();
@@ -48,11 +53,17 @@ function SlotEditor({slot, saved, onChanged}) {
   return <form className="admin-panel form-stack" onSubmit={apply}>
     <fieldset className="editor-fieldset" disabled={busy}>
       <legend>{slot.label}</legend>
-      {!slot.textOnly&&!form.image&&<div className="appearance-preview">
+      {!slot.hero&&!slot.textOnly&&!form.image&&<div className="appearance-preview">
         <small>기본 이미지</small>
         {slot.image ? <img src={slot.image} alt="기본 이미지"/> : <Art tile={slot.tile}/>}
       </div>}
-      <EditorFields fields={fields} form={form} setForm={setForm} mediaCategory={slot.path==='/mobility'?'car':slot.key.endsWith('-hero')?'banner':'other'}/>
+      <EditorFields fields={mediaFields} form={form} setForm={setForm} mediaCategory={mediaCategory}/>
+      {slot.hero&&<BannerTextEditor hero={heroAppearance(slot.hero,form)} form={form} home={slot.key==='home-hero'}
+        onChange={layers=>setForm(current=>({...current,layers}))}/>}
+      {otherFields.length>0&&(slot.hero?<details>
+        <summary>버튼·특징·진행 단계 문구</summary>
+        <div className="form-stack"><EditorFields fields={otherFields} form={form} setForm={setForm}/></div>
+      </details>:<EditorFields fields={otherFields} form={form} setForm={setForm}/>)}
       <div className="actions">
         <button className="btn primary" type="submit">{busy ? '처리 중…' : '화면 설정 저장'}</button>
         <button className="btn" type="button" onClick={event=>apply(event, true)}>기본값 복원</button>

@@ -1,6 +1,7 @@
 import { serveMedia } from './media-response.js';
 import { databaseMedia, mediaKey, mediaLimit, mediaTypes } from './media-store.js';
 import { deleteMedia, listMedia, mediaDetails, updateMedia } from './media-library.js';
+import { listBanners } from './banner-text.js';
 import { ApiError, invalid, digest, token, matchesPassword, cookie, accountSession, requireOrigin, rateLimit, readJson, text, choice } from './security.js';
 import { listProducts, product, quote } from './catalog.js';
 import { definitions, saveRecord, settings, saveSettings } from './records.js';
@@ -68,7 +69,7 @@ export async function handleApi(request,env,db) {
       if(env.PRIVATE_PREVIEW)response.headers.set('Cache-Control','private, no-store');
       return response;
     }
-    if(area==='site'&&method==='GET') return json({settings:await settings(db),appearance:await appearance(db),navigation:await navigation(db),banners:await db.all('SELECT * FROM banners WHERE enabled=1 ORDER BY sort_order,id LIMIT 12')});
+    if(area==='site'&&method==='GET') return json({settings:await settings(db),appearance:await appearance(db),navigation:await navigation(db),banners:await listBanners(db,true)});
     if(area==='products'&&method==='GET') {
       if(action) return json(await product(db,action));
       return json({items:await listProducts(db),categories:await db.all('SELECT * FROM categories ORDER BY name'),links:await db.all(`SELECT pc.* FROM product_categories pc JOIN products p ON p.id=pc.product_id WHERE p.status='published'`)});
@@ -174,6 +175,7 @@ export async function handleApi(request,env,db) {
     }
     if(!Object.hasOwn(definitions,action))throw notFound();
     if(method==='GET') {
+      if(action==='banners') return json(await listBanners(db));
       if(action==='content'&&searchParams.has('kind')) {
         const kind=choice(searchParams.get('kind'),kinds,'게시판');
         if(kind==='page'&&searchParams.has('category')) {

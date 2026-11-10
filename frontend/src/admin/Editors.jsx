@@ -7,6 +7,7 @@ import { entities,recordTitle,settingsFields,optionLabels } from './fields.js';
 import { boardTitles } from '../pages/content.js';
 import { isVideoUrl, mediaAccept } from '../../../shared/media-library.js';
 import { MediaPicker, uploadMedia } from './ImageLibrary.jsx';
+import BannerTextEditor from './BannerTextEditor.jsx';
 
 export const mediaUploading=form=>Boolean(form?.querySelector('[data-uploading]'));
 
@@ -59,7 +60,6 @@ function recordFields(entity, fields, form) {
     const [key,label]=field;
     if(key==='image')return [[key,form.kind==='video'?'배너 영상':label,form.kind==='video'?'video':'picture']];
     if(form.kind==='video'&&['mobile','alt','link'].includes(key))return [];
-    if(key==='body'&&!form.intro)return [];
     return [field];
   });
 }
@@ -94,7 +94,9 @@ export function Records({entity,refs,onChanged,kind,category,general,title:custo
   return <><div className="admin-head"><div><h1>{title}</h1><p>등록된 항목을 검색하고 변경할 수 있습니다.</p></div>{entity==='products'?<Link className="btn primary" to="/admin/phone-registration">휴대폰 등록</Link>:<button className="btn primary" onClick={()=>{setError('');setForm(blankFields(fields));}}>+ 새 항목</button>}</div>
     <div className="admin-panel"><label>목록 검색<input type="search" value={query} onChange={e=>setQuery(e.target.value)}/></label><Status resource={resource}/>
       <div className="table-scroll"><table><thead><tr><th>항목</th><th>관리 코드</th><th>관리</th></tr></thead><tbody>{records.map(item=><tr key={item.id}><td>{recordTitle(item)}</td><td>{item.id}</td><td>{item.mode==='feed'?<span>자동 갱신</span>:<><button className="btn" onClick={()=>{setError('');setForm(item);}}>수정</button> <button className="btn" onClick={()=>{setError('');setRemove(item);}}>삭제</button></>}</td></tr>)}</tbody></table></div>{resource.data&&!records.length&&<p className="message">항목이 없습니다.</p>}</div>
-    {form&&<Modal title={title+(form.id?' 수정':' 등록')} onClose={()=>{if(!busy)setForm(null);}}><form className="form-stack" onSubmit={save}><EditorFields fields={recordFields(entity,fields,form)} form={form} setForm={setForm} refs={refs} mediaCategory={mediaCategory}/>{error&&<p role="alert" className="message error">{error}</p>}<button className="btn primary" disabled={busy}>저장</button></form></Modal>}
+    {form&&<Modal title={title+(form.id?' 수정':' 등록')} className={entity==='banners'?'banner-editor-dialog':''} onClose={()=>{if(!busy)setForm(null);}}><form className="form-stack" onSubmit={save}><EditorFields fields={recordFields(entity,fields,form)} form={form} setForm={setForm} refs={refs} mediaCategory={mediaCategory}/>
+      {entity==='banners'&&Boolean(form.intro)&&<BannerTextEditor form={form} onChange={layers=>setForm(current=>({...current,layers}))}/>}
+      {error&&<p role="alert" className="message error">{error}</p>}<button className="btn primary" disabled={busy}>저장</button></form></Modal>}
     {remove&&<Modal title="항목 삭제" onClose={()=>{if(!busy)setRemove(null);}}><p>{recordTitle(remove)} 항목을 삭제합니다.</p>{error&&<p role="alert" className="message error">{error}</p>}<button className="btn danger" onClick={deleteItem} disabled={busy}>삭제</button></Modal>}
   </>;
 }

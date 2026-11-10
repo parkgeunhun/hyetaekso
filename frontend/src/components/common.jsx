@@ -1,5 +1,7 @@
 import { useEffect,useRef } from 'react';
 import { Link } from 'react-router-dom';
+import { BannerTextPlane } from './BannerCanvas.jsx';
+import { bannerLineBreaks } from '../../../shared/banner-text.js';
 import { Smartphone, Building2, Droplet, House, LampFloor, CarFront, BriefcaseBusiness, Handshake, Headset, ShieldCheck, Users, BadgePercent, Heart, Wifi, Tv, Refrigerator, WashingMachine, AirVent, Wind, Armchair, CookingPot, Truck, Sparkles, PanelsTopLeft, Store, Car, Zap, Phone, Printer, ChartNoAxesCombined, GraduationCap, HeartPulse, Baby, HeartHandshake, ClipboardList, Check, ArrowRight } from 'lucide-react';
 
 const icons={Smartphone,Building2,Droplet,House,LampFloor,CarFront,BriefcaseBusiness,Handshake,Headset,ShieldCheck,Users,BadgePercent,Heart,Wifi,Tv,Refrigerator,WashingMachine,AirVent,Wind,Armchair,CookingPot,Truck,Sparkles,PanelsTopLeft,Store,Car,Zap,Phone,Printer,ChartNoAxesCombined,GraduationCap,HeartPulse,Baby,HeartHandshake,ClipboardList,Check,ArrowRight};
@@ -12,13 +14,18 @@ export function Art({tile=0,className='',src,mobile}) {
     </picture>}
   </div>;
 }
-export function Hero({data,children,home=false,image,mobile}) {
-  return <section className={'hero '+(data.dark?'hero-dark ':'')+(home?'hero-home':'')}>
+export function Hero({data,children,home=false,image,mobile,editor}) {
+  const layered=Array.isArray(data.layers);
+  return <section className={'hero '+(data.dark?'hero-dark ':'')+(home?'hero-home ':'')+(layered?'hero-layered':'')}>
     {home?<picture className="home-scene">{mobile&&<source media="(max-width:600px)" srcSet={mobile}/>}<img src={image||'/media/showroom.png'} alt=""/></picture>:<Art tile={data.tile} src={image} mobile={mobile}/>}
-    <div className="hero-shade"/><div className="hero-inner wrap">
-      {data.kicker&&<p className="eyebrow">{data.kicker}</p>}
-      <h1>{data.title[0]}{data.title[1]&&<>{data.title[0]&&<br/>}<em>{data.title[1]}</em></>}</h1>
-      {data.description&&<p className="hero-description preserve">{data.description}</p>}
+    <div className="hero-shade"/>
+    {layered&&<BannerTextPlane className="hero-text-plane" layers={data.layers} editor={editor} headingFallback={data.title.join(' ')}/>}
+    <div className="hero-inner wrap">
+      {!layered&&<>
+        {data.kicker&&<p className="eyebrow preserve">{bannerLineBreaks(data.kicker)}</p>}
+        <h1 className="preserve">{bannerLineBreaks(data.title[0])}{data.title[1]&&<>{data.title[0]&&<br/>}<em>{bannerLineBreaks(data.title[1])}</em></>}</h1>
+        {data.description&&<p className="hero-description preserve">{bannerLineBreaks(data.description)}</p>}
+      </>}
       {data.features?.length>0&&<div className="hero-features">{data.features.map((label,i)=><span key={i}><Icon name={['ShieldCheck','Users','ClipboardList','Headset'][i]} size={21}/>{label}</span>)}</div>}
       {children}
     </div>
@@ -33,8 +40,8 @@ export function Status({resource}) {
   if(resource.error)return <div className="message error" role="alert">{resource.error.message} <button className="btn" onClick={resource.retry}>다시 시도</button></div>;
   return null;
 }
-export function Modal({title,children,onClose}) {
+export function Modal({title,children,onClose,className=''}) {
   const dialog=useRef(null);
   useEffect(()=>{const node=dialog.current;node.showModal();return ()=>node.close();},[]);
-  return <dialog ref={dialog} onCancel={event=>{event.preventDefault();event.stopPropagation();onClose();}} className="dialog"><header><h2>{title}</h2><button className="btn" type="button" onClick={onClose} aria-label="닫기">×</button></header>{children}</dialog>;
+  return <dialog ref={dialog} onCancel={event=>{event.preventDefault();event.stopPropagation();onClose();}} className={'dialog '+className}><header><h2>{title}</h2><button className="btn" type="button" onClick={onClose} aria-label="닫기">×</button></header>{children}</dialog>;
 }

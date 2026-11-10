@@ -6,6 +6,8 @@ import { useSite } from '../layouts/SiteLayout.jsx';
 import { useResource } from '../hooks/data.js';
 import { homeHero, homePromises, heroAppearance, heroSlot, cardSlot, serviceCardTile } from '../../../shared/site-appearance.js';
 import { menuLabel, siteMenu } from '../../../shared/navigation.js';
+import { BannerMedia, BannerTextPlane } from '../components/BannerCanvas.jsx';
+import { bannerLineBreaks } from '../../../shared/banner-text.js';
 
 export function Banner() {
   const {banners,settings,appearance}=useSite(),[index,setIndex]=useState(0),[paused,pause]=useState(false),[hover,hovering]=useState(false);
@@ -26,10 +28,11 @@ export function Banner() {
       </div>}
     </Hero>;
   }
-  const media=active.kind==='video'?<video src={active.image} style={{objectFit:active.fit}} muted playsInline autoPlay={!reduced} loop controls/>:<picture>{active.mobile&&<source media="(max-width:600px)" srcSet={active.mobile}/>}<img src={active.image} alt={active.alt} style={{objectFit:active.fit}}/></picture>;
-  return <section className="banner" aria-label="홈 배너" onMouseEnter={()=>hovering(true)} onMouseLeave={()=>hovering(false)} onFocus={()=>hovering(true)} onBlur={e=>{if(!e.currentTarget.contains(e.relatedTarget))hovering(false);}}>
+  const media=<BannerMedia image={active.image} mobile={active.mobile} kind={active.kind} fit={active.fit} alt={active.alt} playing={!reduced}/>;
+  const layered=Array.isArray(active.layers);
+  return <section className={'banner '+(layered?'banner-layered':'')} aria-label="홈 배너" onMouseEnter={()=>hovering(true)} onMouseLeave={()=>hovering(false)} onFocus={()=>hovering(true)} onBlur={e=>{if(!e.currentTarget.contains(e.relatedTarget))hovering(false);}}>
     {active.link&&active.kind!=='video'?<a href={active.link}>{media}</a>:media}
-    {active.intro&&<div className="banner-intro"><h1>{active.title}</h1><p className="preserve">{active.body}</p></div>}
+    {active.intro&&(layered?<BannerTextPlane layers={active.layers} className="banner-slide-plane" headingFallback={active.title}/>:<div className="banner-intro"><h1 className="preserve">{bannerLineBreaks(active.title)}</h1><p className="preserve">{bannerLineBreaks(active.body)}</p></div>)}
     {banners.length>1&&<div className="banner-controls"><button aria-label="이전 배너" onClick={()=>setIndex((index+banners.length-1)%banners.length)}>‹</button><span>{index+1} / {banners.length}</span><button aria-label="다음 배너" onClick={()=>setIndex((index+1)%banners.length)}>›</button>{settings.banner_autoplay&&!reduced&&<button aria-label={paused?'자동 넘김 재생':'자동 넘김 정지'} onClick={()=>pause(!paused)}>{paused?'▶':'Ⅱ'}</button>}</div>}
   </section>;
 }

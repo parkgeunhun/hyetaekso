@@ -87,7 +87,23 @@ test('administrator changes the public banner and registers a phone with pricing
   await page.getByRole('button',{name:'로그인',exact:true}).click();
   await expect(page.getByRole('combobox',{name:'편집할 위치'}).locator('option')).toHaveText(['헤더·푸터 로고','브라우저 탭 아이콘']);
   await page.goto('/admin/page-home');
-  await page.getByLabel('제목 첫 줄').fill('관리자에서 바꾼 홈 배너');
+  const textEditor=page.getByRole('region',{name:'배너 텍스트 편집기'});
+  await textEditor.getByRole('combobox',{name:/편집할 문구/}).selectOption('headline');
+  await textEditor.getByLabel('문구 내용',{exact:true}).fill('관리자에서 바꾼 홈 배너\\r\\n두 번째 줄');
+  await textEditor.getByLabel('글자 색상',{exact:true}).fill('#2457a8');
+  await textEditor.getByLabel('글자 크기 (px)',{exact:true}).fill('46');
+  await textEditor.getByLabel('X 좌표 (%)',{exact:true}).fill('15');
+  await textEditor.getByLabel('Y 좌표 (%)',{exact:true}).fill('25');
+  const previewText=textEditor.getByRole('button',{name:/미리보기 문구 관리자에서 바꾼 홈 배너/});
+  expect(await previewText.textContent()).toContain('\n두 번째 줄');
+  await previewText.scrollIntoViewIfNeeded();
+  const dragStart=await previewText.boundingBox();
+  await page.mouse.move(dragStart.x+12,dragStart.y+10);
+  await page.mouse.down();
+  await page.mouse.move(dragStart.x+50,dragStart.y+24,{steps:3});
+  await page.mouse.up();
+  const savedX=await textEditor.getByLabel('X 좌표 (%)',{exact:true}).inputValue();
+  expect(Number(savedX)).toBeGreaterThan(15);
   const uploaded=page.waitForResponse(response=>new URL(response.url()).pathname==='/api/admin/media'&&response.request().method()==='POST');
   await page.getByLabel('PC 사진',{exact:true}).setInputFiles({
     name:'banner.png',mimeType:'image/png',
@@ -101,6 +117,10 @@ test('administrator changes the public banner and registers a phone with pricing
   await expect(page.getByText('공개 화면에 반영했습니다.')).toBeVisible();
   await page.goto('/');
   await expect(page.getByRole('heading',{level:1,name:/관리자에서 바꾼 홈 배너/})).toBeVisible();
+  const heading=page.locator('.hero-home .banner-text-item').filter({hasText:'관리자에서 바꾼 홈 배너'});
+  await expect(heading).toHaveCSS('color','rgb(36, 87, 168)');
+  expect(await heading.textContent()).toContain('\n두 번째 줄');
+  expect(await heading.evaluate(node=>node.style.left)).toBe(savedX+'%');
   await expect(page.locator('.hero-home img')).toHaveAttribute('src',url);
   expect((await page.request.get(url)).headers()['content-type']).toBe('image/png');
 
@@ -109,13 +129,17 @@ test('administrator changes the public banner and registers a phone with pricing
   await page.goto('/admin/banners');
   await page.getByRole('button',{name:'+ 새 항목',exact:true}).click();
   const slide=page.getByRole('dialog').filter({hasText:'홈 배너 슬라이드 등록'});
-  await slide.getByLabel('제목',{exact:true}).fill('보관함 사진을 사용한 배너');
+  await slide.getByLabel('배너 관리 이름',{exact:true}).fill('보관함 사진을 사용한 배너');
   await slide.getByRole('button',{name:'PC 사진 보관함에서 선택',exact:true}).click();
   await page.getByRole('button',{name:'banner.png 선택',exact:true}).click();
   await expect(slide.getByRole('img',{name:'PC 사진 미리보기'})).toHaveAttribute('src',url);
+  await slide.getByLabel('배너 문구 표시',{exact:true}).check();
+  await slide.getByLabel('문구 내용',{exact:true}).fill('슬라이드 문구');
   const slideSaved=page.waitForResponse(response=>new URL(response.url()).pathname==='/api/admin/banners'&&response.request().method()==='POST');
   await slide.getByRole('button',{name:'저장',exact:true}).click();
-  expect((await (await slideSaved).json()).image).toBe(url);
+  const savedSlide=await (await slideSaved).json();
+  expect(savedSlide.image).toBe(url);
+  expect(savedSlide.layers[0].text).toBe('슬라이드 문구');
 
   await page.goto('/admin/page-telecom');
   const adminMenu=page.getByRole('navigation',{name:'관리 메뉴'});

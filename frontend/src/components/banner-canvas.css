@@ -1,0 +1,19 @@
+.hero.hero-layered{display:block;min-height:0;container:banner-hero / inline-size}
+.hero-text-plane{height:clamp(245px,34cqw,425px)}
+.hero.hero-layered .hero-inner{padding:0 0 28px;animation:none}
+.hero.hero-home.hero-layered .hero-inner{padding-bottom:clamp(75px,9cqw,120px)}
+.hero-layered .hero-features{margin-top:0}
+.banner-layered{container-type:inline-size;overflow:hidden}
+.banner-layered picture{display:block;height:100%}
+.banner-text-plane{position:relative;overflow:hidden;pointer-events:none}
+.banner-slide-plane{position:absolute;inset:0}
+.banner-slide-plane .banner-text-item{text-shadow:0 2px 8px #000b}
+.banner-text-item{position:absolute;white-space:pre-wrap;overflow-wrap:anywhere;text-align:left;letter-spacing:normal;text-wrap:wrap}
+.banner-text-handle{border:0;padding:0;background:none;pointer-events:auto;cursor:move;touch-action:none;min-width:16px;font-family:inherit}
+.banner-text-handle[aria-pressed=true]{outline:2px dashed #3481e5;outline-offset:3px;background:#5b9cff1a}
+.banner-screen-reader-title{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+@container banner-hero (max-width:600px){
+  .hero-layered>.service-art{left:0;opacity:.35}
+  .hero-layered .hero-shade{background:linear-gradient(90deg,#f5f1ec 0%,#f5f1ecee 30%,#f5f1ec35 100%)}
+  .hero-layered.hero-dark .hero-shade{background:linear-gradient(90deg,#080d12ee 0%,#080d12c2 50%,#080d1255 100%)}
+}

@@ -2,6 +2,7 @@ import { officialEndpoints, officialEndpoint } from './carrier-support.js';
 import { ApiError, invalid, text, money, choice, mediaUrl, pictureUrl } from './security.js';
 import { joins, storageKey, offer, supportSignature } from './catalog.js';
 import { lockMediaReferences } from './media-store.js';
+import { validateBannerLayers } from './banner-text.js';
 
 const string=(label,max,required=true)=>value=>text(value??'',label,max,required);
 const number=(label,min,max)=>value=>money(value??0,label,min,max);
@@ -69,6 +70,7 @@ export async function saveRecord(db,table,input,id) {
   id=id?text(id,'관리 코드',64):crypto.randomUUID();
   if (!/^[\w-]+$/.test(id)) throw invalid('관리 코드를 확인해 주세요.');
   const fields=Object.fromEntries(Object.entries(definitions[table]).map(([key,parse])=>[key,parse(input[key])]));
+  const layers=table==='banners'&&Object.hasOwn(input,'layers')?validateBannerLayers(input.layers):undefined;
   if (table==='banners') {
     if (fields.enabled && !fields.image) throw invalid('배너 파일을 선택해 주세요.');
     if (fields.kind==='image') {
@@ -100,10 +102,12 @@ export async function saveRecord(db,table,input,id) {
   }
   if (table==='content') fields.created_at=(await db.all('SELECT created_at FROM content WHERE id=?',[id]))[0]?.created_at??Date.now();
   await replace(db,table,id,fields);
+  if (layers===null) await db.run('DELETE FROM banner_text WHERE id=?',[id]);
+  else if (layers!==undefined) await replace(db,'banner_text',id,{value:JSON.stringify(layers)});
   if (table==='products'&&Array.isArray(input.categories)) {
     if (input.categories.length>30) throw invalid('카테고리는 최대 30개입니다.');
     await db.run('DELETE FROM product_categories WHERE product_id=?',[id]);
     for (const category of new Set(input.categories)) await db.run('INSERT INTO product_categories(product_id,category_id) VALUES(?,?)',[id,text(category,'카테고리',64)]);
   }
-  return {id,...fields};
+  return {id,...fields,...(layers!==undefined?{layers}:{})};
 }
