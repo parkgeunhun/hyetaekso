@@ -6,8 +6,6 @@ import { useResource } from '../hooks/data.js';
 import { Art, Status } from '../components/common.jsx';
 import { EditorFields, mediaUploading } from './Editors.jsx';
 
-const groups = [...new Set(appearanceSlots.map(slot => slot.group))];
-
 function initialForm(slot, values) {
   return {
     image: '',
@@ -66,24 +64,20 @@ function SlotEditor({slot, saved, onChanged}) {
 
 export default function AppearanceEditor({onChanged, page}) {
   const resource = useResource('/admin/appearance', {keepData: true});
-  const [selectedGroup, setGroup] = useState('홈');
-  const [key, setKey] = useState('home-hero');
-  const group = page ?? selectedGroup;
-  const slots = appearanceSlots.filter(slot => slot.group === group);
+  const [key, setKey] = useState('');
+  const isCommon = page === '공통';
+  const slots = appearanceSlots.filter(slot => slot.group === page);
   const slot = slots.find(item => item.key === key) ?? slots[0];
 
   return <>
     <div className="admin-head">
-      <div><h1>{page ? page+' 화면 편집' : '사이트 이미지·배너 편집'}</h1><p>공개 화면의 사진, 배너 문구와 서비스 안내를 편집합니다.</p></div>
+      <div><h1>{isCommon ? '로고·탭 아이콘' : page+' 화면 편집'}</h1><p>{isCommon ? '사이트 전체에 표시되는 로고와 브라우저 탭 아이콘을 변경합니다.' : '이 페이지의 사진과 배너 문구를 편집합니다.'}</p></div>
       <div className="actions">
-        {page&&page!=='홈'&&<Link className="btn" to={'/admin/service-'+slot.path.slice(1)}>추가 안내 관리</Link>}
+        {!isCommon&&page!=='홈'&&<Link className="btn" to={'/admin/service-'+slot.path.slice(1)}>추가 안내 관리</Link>}
         <Link className="btn" to={slot.path} target="_blank" rel="noopener">공개 화면 열기</Link>
       </div>
     </div>
     <div className="admin-panel filters">
-      {!page&&<label>편집할 화면<select aria-label="편집할 화면" value={group} onChange={e=>setGroup(e.target.value)}>
-        {groups.map(name=><option key={name}>{name}</option>)}
-      </select></label>}
       <label>편집할 위치<select aria-label="편집할 위치" value={slot.key} onChange={e=>setKey(e.target.value)}>
         {slots.map(item=><option key={item.key} value={item.key}>{item.label}</option>)}
       </select></label>

@@ -16,17 +16,23 @@ const pageSections=Object.fromEntries([['page-home','홈'],...menu.map(([slug,la
 const serviceSections=Object.fromEntries(menu.map(([slug,label])=>['service-'+slug,{slug,label}]));
 const boardSections=Object.fromEntries(Object.keys(boardTitles).map(kind=>['board-'+kind,kind]));
 const settingSections={
+  settings:['motion'],
   contact:['company','phone','email','hours','address','registration','representative','kakao'],
   privacy:['privacy','consent'],
-  terms:['terms']
+  terms:['terms'],
+  'phone-guide':['join_change','join_new','join_port','help_enabled','help_text'],
+  'support-sources':['skt_notice','sc_price'],
+  'intake-settings':['intake','retention_days','success_text']
 };
+const bannerSettings=['banner_autoplay','banner_interval'];
 const titles={
   ...pageSections,
   ...Object.fromEntries(Object.entries(serviceSections).map(([section,{label}])=>[section,label+' 추가 안내'])),
   ...Object.fromEntries(Object.entries(boardSections).map(([section,kind])=>[section,boardTitles[kind]])),
-  sync:'지원금 갱신',excel:'엑셀 일괄 작업',leads:'상담 접수',settings:'사이트 설정',
-  appearance:'사이트 이미지·배너 편집',navigation:'메뉴 관리',contact:'회사·고객센터 정보',privacy:'개인정보처리방침',
-  terms:'이용약관','phone-registration':'휴대폰 등록'
+  sync:'지원금 갱신',excel:'엑셀 일괄 작업',leads:'상담 접수',settings:'화면 움직임',
+  appearance:'로고·탭 아이콘',navigation:'메뉴 관리',contact:'회사·고객센터 정보',privacy:'개인정보처리방침',
+  terms:'이용약관','phone-registration':'휴대폰 등록','phone-guide':'휴대폰 안내 문구',
+  'support-sources':'지원금 조회 주소','intake-settings':'상담 접수 설정','board-page':'일반 안내 게시판'
 };
 const link=(section,label=entities[section]?.title||titles[section])=>({section,label});
 const consultation=service=>({section:'leads',service,label:service+' 상담'});
@@ -42,21 +48,21 @@ const serviceConsultations={
 };
 const serviceTools={
   telecom:[
-    {label:'휴대폰 관리',items:['phone-registration','products','manufacturers','categories','capacities','colors'].map(section=>link(section))},
-    {label:'요금제·지원금',items:['carriers','plans','offers','supports','sync'].map(section=>link(section))}
+    {label:'휴대폰 관리',items:['phone-registration','products','manufacturers','categories','capacities','colors','phone-guide'].map(section=>link(section))},
+    {label:'요금제·지원금',items:['carriers','plans','offers','supports','sync','support-sources'].map(section=>link(section))}
   ],
   rental:[link('board-rental')],
-  support:[link('leads','전체 상담'),...['board-notice','board-faq','board-review','board-qna','contact','privacy','terms'].map(section=>link(section))]
+  support:[link('leads','전체 상담'),...['intake-settings','board-notice','board-faq','board-review','board-qna','board-page','contact','privacy','terms'].map(section=>link(section))]
 };
 const groups=[
-  {label:'홈',items:[link('page-home','홈 화면·배너'),link('banners')]},
+  {label:'홈',items:[link('page-home','홈 기본 화면'),link('banners')]},
   ...menu.map(([slug,label])=>({label,items:[
     link('page-'+slug,'화면·배너'),
     link('service-'+slug,'추가 안내'),
     ...(serviceTools[slug]??[]),
     ...(serviceConsultations[slug]??[]).map(consultation)
   ]})),
-  {label:'공통 설정',items:[link('navigation'),link('appearance','공통 이미지·배너'),link('board-page','전체 서비스 안내'),link('settings'),link('excel')]}
+  {label:'공통 설정',items:[link('navigation'),link('appearance'),link('settings'),link('excel')]}
 ];
 
 function SidebarItem({item,isActive,onNavigate}) {
@@ -140,17 +146,18 @@ function Workspace({user,logout,site}) {
     <main className="admin-main"><header className="admin-toolbar"><button className="btn admin-menu-toggle" aria-controls="admin-sidebar" aria-expanded={nav} onClick={()=>setNav(!nav)}>관리 메뉴 ☰</button><span>혜택소 관리자 › {service?service+' 상담':entities[section]?.title||titles[section]||'대시보드'}</span><span>{user.username}</span></header>
       <div className="admin-work">{error&&<p role="alert" className="message error">{error} <button className="btn" onClick={refresh}>다시 시도</button></p>}
       {section==='dashboard'&&<Dashboard/>}
-      {section==='appearance'&&<AppearanceEditor onChanged={site.retry}/>}
+      {section==='appearance'&&<AppearanceEditor page="공통" onChanged={site.retry}/>}
       {Object.hasOwn(pageSections,section)&&<AppearanceEditor key={section} page={pageSections[section]} onChanged={site.retry}/>}
       {servicePage&&<Records key={section} entity="content" kind="page" category={'service:'+servicePage.slug} title={titles[section]} onChanged={site.retry}/>}
       {section==='navigation'&&<NavigationEditor onChanged={site.retry}/>}
       {section==='phone-registration'&&<PhoneRegistration refs={refs} onChanged={refresh}/>}
-      {(section==='settings'||Object.hasOwn(settingSections,section))&&<SiteSettings key={section} only={settingSections[section]} title={titles[section]} onChanged={site.retry}/>}
+      {Object.hasOwn(settingSections,section)&&<SiteSettings key={section} only={settingSections[section]} title={titles[section]} onChanged={site.retry}/>}
       {section==='excel'&&<Excel/>}
       {section==='leads'&&<Leads key={service}/>}
       {section==='sync'&&<Sync/>}
-      {Object.hasOwn(entities,section)&&<Records key={section} entity={section} refs={refs} onChanged={refresh}/>}
-      {Object.hasOwn(boardSections,section)&&<Records key={section} entity="content" kind={boardSections[section]} onChanged={site.retry}/>}
+      {Object.hasOwn(entities,section)&&<Records key={section} entity={section} refs={refs} onChanged={section==='banners'?site.retry:refresh}/>}
+      {section==='banners'&&<SiteSettings only={bannerSettings} title="슬라이드 재생 설정" subsection onChanged={site.retry}/>}
+      {Object.hasOwn(boardSections,section)&&<Records key={section} entity="content" kind={boardSections[section]} title={titles[section]} general={section==='board-page'} onChanged={site.retry}/>}
       {section!=='dashboard'&&!Object.hasOwn(titles,section)&&!Object.hasOwn(entities,section)&&<h1>관리 메뉴를 찾을 수 없습니다.</h1>}</div>
     </main></div>;
 }

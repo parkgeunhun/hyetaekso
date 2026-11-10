@@ -60,9 +60,9 @@ function recordFields(entity, fields, form) {
     return [field];
   });
 }
-export function Records({entity,refs,onChanged,kind,category,title:customTitle}) {
+export function Records({entity,refs,onChanged,kind,category,general,title:customTitle}) {
   const definition=entities[entity];
-  const queryString=kind?'?'+new URLSearchParams(category?{kind,category}:{kind}):'';
+  const queryString=kind?'?'+new URLSearchParams({kind,...(category?{category}:{}),...(general?{scope:'general'}:{})}):'';
   const resource=useResource('/admin/'+entity+queryString);
   const title=customTitle??(kind?boardTitles[kind]:definition.title);
   const fields=definition.fields.filter(([key])=>!(kind&&key==='kind')&&!(category&&key==='category'));
@@ -71,6 +71,9 @@ export function Records({entity,refs,onChanged,kind,category,title:customTitle})
   async function save(event) {
     event.preventDefault();
     if(mediaUploading(event.currentTarget)){setError('파일 업로드가 끝난 후 저장해 주세요.');return;}
+    if(general&&form.category?.trim().toLowerCase().startsWith('service:')) {
+      setError('서비스별 추가 안내는 해당 서비스 메뉴에서 등록해 주세요.');return;
+    }
     setBusy(true);setError('');
     try {
       const body={...form,...(kind?{kind}:{}),...(category?{category}:{})};
@@ -91,9 +94,10 @@ export function Records({entity,refs,onChanged,kind,category,title:customTitle})
     {remove&&<Modal title="항목 삭제" onClose={()=>{if(!busy)setRemove(null);}}><p>{recordTitle(remove)} 항목을 삭제합니다.</p>{error&&<p role="alert" className="message error">{error}</p>}<button className="btn danger" onClick={deleteItem} disabled={busy}>삭제</button></Modal>}
   </>;
 }
-export function SiteSettings({only,title='사이트 설정',onChanged}) {
+export function SiteSettings({only,title,subsection,onChanged}) {
   const resource=useResource('/admin/settings'),[form,setForm]=useState(null),[result,setResult]=useState(null),[busy,setBusy]=useState(false);
-  const fields=only?settingsFields.filter(([key])=>only.includes(key)):settingsFields;
+  const fields=settingsFields.filter(([key])=>only.includes(key));
+  const Heading=subsection?'h2':'h1';
   useEffect(()=>{if(resource.data)setForm(resource.data);},[resource.data]);
   async function save(event) {
     event.preventDefault();setBusy(true);setResult(null);
@@ -105,7 +109,7 @@ export function SiteSettings({only,title='사이트 설정',onChanged}) {
     }
     catch(error){setResult({message:error.message,error:true});}finally{setBusy(false);}
   }
-  return <><h1>{title}</h1><Status resource={resource}/>{form&&<form className="admin-panel form-stack settings-grid" onSubmit={save}><EditorFields fields={fields} form={form} setForm={setForm}/>{result&&<p role={result.error?'alert':'status'} className={'message '+(result.error?'error':'')}>{result.message}</p>}<button className="btn primary" disabled={busy}>설정 저장</button></form>}</>;
+  return <><Heading>{title}</Heading><Status resource={resource}/>{form&&<form className="admin-panel form-stack settings-grid" onSubmit={save}><EditorFields fields={fields} form={form} setForm={setForm}/>{result&&<p role={result.error?'alert':'status'} className={'message '+(result.error?'error':'')}>{result.message}</p>}<button className="btn primary" disabled={busy}>설정 저장</button></form>}</>;
 }
 function toBase64(file) {
   return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result).split(',')[1]);reader.onerror=()=>reject(new Error('파일을 읽지 못했습니다.'));reader.readAsDataURL(file);});

@@ -57,7 +57,7 @@ test('direct links render catalog and gated administrator sign-in',async({page})
 });
 
 test('administrator can sign in, change the company, and sign out',async({page})=>{
-  await page.goto('/admin/settings');
+  await page.goto('/admin/contact');
   await page.getByLabel('아이디').fill('browser-admin');
   await page.getByLabel('비밀번호').fill(process.env.BROWSER_TEST_PASSWORD);
   await page.getByRole('button',{name:'로그인',exact:true}).click();
@@ -67,6 +67,12 @@ test('administrator can sign in, change the company, and sign out',async({page})
   expect((await saved).ok()).toBe(true);
   await page.reload();
   await expect(page.getByLabel('회사명',{exact:true})).toHaveValue('혜택소 테스트');
+  await page.goto('/admin/settings');
+  await expect(page.locator('label').filter({hasText:'화면 움직임'}).locator('select')).toBeVisible();
+  await expect(page.getByLabel('회사명',{exact:true})).toHaveCount(0);
+  await expect(page.getByLabel('홈 배너 자동 전환',{exact:true})).toHaveCount(0);
+  await page.goto('/admin/banners');
+  await expect(page.getByLabel('홈 배너 자동 전환',{exact:true})).toBeVisible();
   await page.goto('/admin');
   await expect(page.getByRole('heading',{name:'대시보드'})).toBeVisible();
   await page.screenshot({path:'.local/admin-desktop.png',fullPage:true,animations:'disabled'});
@@ -79,6 +85,8 @@ test('administrator changes the public banner and registers a phone with pricing
   await page.getByLabel('아이디').fill('browser-admin');
   await page.getByLabel('비밀번호').fill(process.env.BROWSER_TEST_PASSWORD);
   await page.getByRole('button',{name:'로그인',exact:true}).click();
+  await expect(page.getByRole('combobox',{name:'편집할 위치'}).locator('option')).toHaveText(['헤더·푸터 로고','브라우저 탭 아이콘']);
+  await page.goto('/admin/page-home');
   await page.getByLabel('제목 첫 줄').fill('관리자에서 바꾼 홈 배너');
   const uploaded=page.waitForResponse(response=>new URL(response.url()).pathname==='/api/admin/media'&&response.request().method()==='POST');
   await page.getByLabel('PC 사진',{exact:true}).setInputFiles({

@@ -173,6 +173,9 @@ export async function handleApi(request,env,db) {
           const category=text(searchParams.get('category'),'분류',60);
           return json(await db.all('SELECT * FROM content WHERE kind=? AND category=? ORDER BY created_at DESC,id LIMIT 2000',[kind,category]));
         }
+        if(kind==='page'&&searchParams.get('scope')==='general') {
+          return json(await db.all("SELECT * FROM content WHERE kind='page' AND LOWER(category) NOT LIKE 'service:%' ORDER BY created_at DESC,id LIMIT 2000"));
+        }
         return json(await db.all('SELECT * FROM content WHERE kind=? ORDER BY created_at DESC,id LIMIT 2000',[kind]));
       }
       if(action==='products') {

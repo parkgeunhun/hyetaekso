@@ -62,6 +62,8 @@ async function scenario(db) {
   assert.equal((await request('/admin/content?kind=faq')).data[0].id,faq.data.id);
   assert.deepEqual((await request('/admin/content?kind=notice')).data,[]);
   const article=await request('/admin/content','POST',{kind:'page',category:'service:rental',title:'렌탈 추가 안내',body:'설치 조건',status:'published'});
+  const general=await request('/admin/content','POST',{kind:'page',category:'일반',title:'일반 안내',body:'공지 내용',status:'published'});
+  assert.deepEqual((await request('/admin/content?kind=page&scope=general')).data.map(row=>row.id),[general.data.id]);
   assert.equal((await request('/content/page?category=service:rental')).data[0].id,article.data.id);
   assert.deepEqual((await request('/content/page?category=service:moving')).data,[]);
   assert.equal((await request('/content/page/'+article.data.id)).data.body,'설치 조건');
