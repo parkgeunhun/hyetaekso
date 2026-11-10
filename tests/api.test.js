@@ -80,11 +80,12 @@ async function scenario(db) {
   assert.equal((await request('/content/page/'+article.data.id)).data.body,'설치 조건');
   assert.equal((await request('/admin/appearance/unknown','PUT',{image:'/media/showroom.png'})).status,404);
   assert.equal((await request('/admin/appearance/home-hero','PUT',{image:'/media/movie.mp4'})).status,400);
-  const appearance=await request('/admin/appearance/home-hero','PUT',{image:'/media/showroom.png',mobile:'/media/services.png',headline:'관리자 편집 배너'});
+  const appearance=await request('/admin/appearance/home-hero','PUT',{image:'/media/showroom.png',mobile:'/media/services.png',headline:'관리자 편집 배너',primary:'이전 버튼',step0:'이전 단계',feature0:'이전 특징'});
   assert.equal(appearance.status,200);
   const publicAppearance=(await request('/site')).data.appearance['home-hero'];
   assert.equal(publicAppearance.headline,'관리자 편집 배너');
   assert.equal(publicAppearance.mobile,'/media/services.png');
+  for(const key of ['primary','step0','feature0'])assert.equal(Object.hasOwn(publicAppearance,key),false);
   const layer={id:'custom-heading',text:'첫 문구\\r\\n둘째 줄',x:15,y:24,size:46,color:'#2457a8',bold:true,heading:true};
   assert.equal((await request('/admin/appearance/home-hero','PUT',{layers:[{...layer,x:101}]})).status,400);
   assert.equal((await request('/admin/appearance/home-hero','PUT',{layers:[{...layer,color:'red'}]})).status,400);

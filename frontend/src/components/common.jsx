@@ -13,7 +13,7 @@ export function Art({tile=0,className='',src}) {
     </picture>}
   </div>;
 }
-export function Hero({data,children,home=false,image,editor}) {
+export function Hero({data,home=false,image,editor}) {
   const layered=Array.isArray(data.layers);
   return <section className={'hero '+(data.dark?'hero-dark ':'')+(home?'hero-home ':'')+(layered?'hero-layered':'')}>
     {home?<picture className="home-scene"><img src={image||'/media/showroom.png'} alt=""/></picture>:<Art tile={data.tile} src={image}/>}
@@ -25,8 +25,6 @@ export function Hero({data,children,home=false,image,editor}) {
         <h1 className="preserve">{bannerLineBreaks(data.title[0])}{data.title[1]&&<>{data.title[0]&&<br/>}<em>{bannerLineBreaks(data.title[1])}</em></>}</h1>
         {data.description&&<p className="hero-description preserve">{bannerLineBreaks(data.description)}</p>}
       </>}
-      {data.features?.length>0&&<div className="hero-features">{data.features.map((label,i)=><span key={i}><Icon name={['ShieldCheck','Users','ClipboardList','Headset'][i]} size={21}/>{label}</span>)}</div>}
-      {children}
     </div>
   </section>;
 }

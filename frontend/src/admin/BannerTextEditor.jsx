@@ -59,12 +59,7 @@ export default function BannerTextEditor({hero,form,onChange,home=false}) {
       <small>미리보기 · 좌표는 배너 문구 영역의 왼쪽·위 기준 %</small>
     </div>
     <div className={'banner-editor-preview '+(narrow?'banner-editor-preview-narrow':'')}>
-      {hero?<Hero data={{...hero,layers}} home={home} image={form.image} editor={editor}>
-        {home&&(hero.primary||hero.secondary)&&<div className="actions">
-          {hero.primary&&<span className="btn primary">{hero.primary}</span>}
-          {hero.secondary&&<span className="btn light-outline">{hero.secondary}</span>}
-        </div>}
-      </Hero>:<div className="banner banner-layered banner-editor-slide">
+      {hero?<Hero data={{...hero,layers}} home={home} image={form.image} editor={editor}/>:<div className="banner banner-layered banner-editor-slide">
         <BannerMedia image={form.image} kind={form.kind} fit={form.fit} alt={form.alt}/>
         <BannerTextPlane className="banner-slide-plane" layers={layers} editor={editor}/>
       </div>}

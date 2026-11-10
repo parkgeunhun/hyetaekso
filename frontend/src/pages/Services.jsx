@@ -21,12 +21,7 @@ export function Banner() {
   if(!active) {
     const visual=appearance?.[heroSlot('home')];
     const fallback=heroAppearance(homeHero,visual);
-    return <Hero data={fallback} image={visual?.image || visual?.mobile} home>
-      {(fallback.primary||fallback.secondary)&&<div className="actions">
-        {fallback.primary&&<Link className="btn primary" to="/consult">{fallback.primary}</Link>}
-        {fallback.secondary&&<Link className="btn light-outline" to="/franchise">{fallback.secondary}</Link>}
-      </div>}
-    </Hero>;
+    return <Hero data={fallback} image={visual?.image || visual?.mobile} home/>;
   }
   const media=<BannerMedia image={active.image || (active.kind==='image'?active.mobile:'')} kind={active.kind} fit={active.fit} alt={active.alt} playing={!reduced}/>;
   const layered=Array.isArray(active.layers);
@@ -82,12 +77,9 @@ export function ServicePage({slug}) {
   return <><Breadcrumb title={name}/><Hero data={data} image={visual?.image || visual?.mobile}/>
     {slug==='support'?<SupportBody/>:<>
       {slug==='mobility'&&<MobilityBrands/>}
-      {slug==='franchise'&&<Steps title="가맹 진행 절차" items={data.steps}/>}
       <ServiceCards data={data} slug={slug} onInsurance={setDetail}/>
       {slug==='about'&&<AboutCompany settings={settings} image={appearance?.['about-company']?.image}/>}
       {slug==='telecom'&&<Section title="통신 결합 할인"><div className="benefit-box"><span>인터넷</span><b>+</b><span>휴대폰</span><b>+</b><span>TV</span><b>=</b><span>결합 할인 상담</span></div></Section>}
-      {data.features?.length>0&&<Section title={<>{name} 서비스가 <em>특별한 이유</em></>} className={slug==='insurance'?'benefits-dark center':'center'}><div className="benefit-box">{data.features.map((label,i)=><span key={i}><Icon name={['Handshake','BadgePercent','ShieldCheck','Headset'][i]}/><b>{label}</b></span>)}</div></Section>}
-      {data.steps&&slug!=='franchise'&&<Steps title={name+' 진행 절차'} items={data.steps}/>}
       {slug==='rental'&&<RentalItems/>}
       {slug==='insurance'?<div className="message wrap">보험은 상품 안내 화면을 제공하고 있습니다. 온라인 보험 상담 기능은 준비 중입니다.</div>:<Callout title={slug==='about'?'함께 성장할 파트너를 찾습니다':name+' 상담이 필요하신가요?'} service={slug==='about'?'제휴·입점':slug==='telecom'?'인터넷':menuLabel(slug)} phone={settings.phone}/>}
       {detail&&<Modal title={detail.title} onClose={()=>setDetail(null)}><p>{detail.detail}</p><p>{detail.second}</p><p className="message">보장과 가입 조건은 보험사와 개별 상품에 따라 달라집니다.</p></Modal>}

@@ -6,9 +6,7 @@ export const homeHero = {
   dark: true,
   kicker: '좋은 혜택이 모이는 곳',
   title: ['휴대폰 구매, 고민 끝!', '혜택은 혜택소에서'],
-  description: '휴대폰부터 인터넷·TV, 가전렌탈, 홈·공간 서비스까지. 일상에 필요한 혜택을 한곳에서 살펴보세요.',
-  primary: '빠른 상담 신청',
-  secondary: '가맹점 창업 문의'
+  description: '휴대폰부터 인터넷·TV, 가전렌탈, 홈·공간 서비스까지. 일상에 필요한 혜택을 한곳에서 살펴보세요.'
 };
 
 export const homePromises = [
@@ -31,12 +29,6 @@ function hero(slug, group, data) {
     ['subtitle', '제목 둘째 줄', data.title[1], 160],
     ['description', '설명', data.description, 1000]
   ];
-  data.features?.forEach((value, index) => fields.push(['feature' + index, '특징 ' + (index + 1), value, 100]));
-  if (data.section) fields.push(['section', '서비스 목록 제목', data.section, 160]);
-  data.steps?.forEach((value, index) => fields.push(['step' + index, '진행 단계 ' + (index + 1), value, 100]));
-  if (slug === 'home') {
-    fields.push(['primary', '상담 버튼 문구', data.primary, 50], ['secondary', '가맹 안내 버튼 문구', data.secondary, 50]);
-  }
   return {
     key: heroSlot(slug),
     group,
@@ -81,11 +73,6 @@ export function heroAppearance(data, values = {}) {
     kicker: values.kicker ?? data.kicker,
     title: [values.headline ?? data.title[0], values.subtitle ?? data.title[1]],
     description: values.description ?? data.description,
-    layers: values.layers,
-    features: data.features?.map((label, index) => values['feature' + index] ?? label).filter(Boolean),
-    section: values.section ?? data.section,
-    steps: data.steps?.map((label, index) => values['step' + index] ?? label).filter(Boolean),
-    primary: values.primary ?? data.primary,
-    secondary: values.secondary ?? data.secondary
+    layers: values.layers
   };
 }

@@ -2,7 +2,6 @@
 .hero-text-plane{height:clamp(245px,34cqw,425px)}
 .hero.hero-layered .hero-inner{padding:0 0 28px;animation:none}
 .hero.hero-home.hero-layered .hero-inner{padding-bottom:clamp(75px,9cqw,120px)}
-.hero-layered .hero-features{margin-top:0}
 .banner-layered{container-type:inline-size;overflow:hidden}
 .banner-layered picture{display:block;height:100%}
 .banner-text-plane{position:relative;overflow:hidden;pointer-events:none}
