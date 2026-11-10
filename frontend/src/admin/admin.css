@@ -43,3 +43,20 @@
 .banner-editor-properties input[type=color]{min-height:39px;padding:4px;cursor:pointer}
 .banner-editor .actions [aria-pressed=true]{background:#182332;color:#fff}
 .banner-editor>.btn{justify-self:start}
+.offer-save-bar{position:sticky;top:0;z-index:2;display:flex;justify-content:space-between;align-items:center;gap:8px 16px;flex-wrap:wrap;padding:10px 0;margin-bottom:8px;border-block:1px solid var(--line);background:white}
+.offer-save-bar>span,.offer-fields small{color:var(--muted);font-size:.85rem}
+.offer-list{display:grid;gap:10px}
+.offer-row{min-width:0;padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--panel)}
+.offer-row-changed{border-color:#d89100;background:#fffaf0}
+.offer-row-heading,.offer-row-tools{display:flex;align-items:flex-start;justify-content:space-between;gap:8px 12px;flex-wrap:wrap}
+.offer-row-heading>div:first-child{min-width:0;overflow-wrap:anywhere}
+.offer-row-heading p{margin:2px 0 0;font-size:.87rem;color:var(--muted)}
+.offer-row-tools{justify-content:flex-end;align-items:center;font-size:.8rem}
+.offer-row-tools .btn{min-height:32px;padding:4px 8px}
+.offer-code summary{cursor:pointer;font-family:monospace}
+.offer-code code,.offer-row-tools>code{overflow-wrap:anywhere}
+.offer-pending{font-weight:750;color:#774800}
+.offer-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,145px),1fr));align-items:start;gap:10px;margin:10px 0 0;padding:0;border:0}
+.offer-fields label{min-width:0;font-size:.87rem}
+.offer-fields :is(input,select){min-height:40px;padding:7px 8px}
+.offer-pages{justify-content:center;margin-top:14px}

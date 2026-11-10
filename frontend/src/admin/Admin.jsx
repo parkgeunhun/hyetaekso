@@ -10,6 +10,7 @@ import AppearanceEditor from './AppearanceEditor.jsx';
 import ImageLibrary from './ImageLibrary.jsx';
 import NavigationEditor from './NavigationEditor.jsx';
 import PhoneRegistration from './PhoneRegistration.jsx';
+import OfferEditor from './OfferEditor.jsx';
 import { boardTitles, menu, serviceTypes } from '../pages/content.js';
 import { mediaCategories } from '../../../shared/media-library.js';
 import './admin.css';
@@ -191,7 +192,8 @@ function Workspace({user,logout,site}) {
       {section==='excel'&&<Excel/>}
       {section==='leads'&&<Leads key={service}/>}
       {section==='sync'&&<Sync/>}
-      {Object.hasOwn(entities,section)&&<Records key={section} entity={section} refs={refs} onChanged={section==='banners'?site.retry:refresh}/>}
+      {section==='offers'&&<OfferEditor refs={refs} onChanged={refresh}/>}
+      {section!=='offers'&&Object.hasOwn(entities,section)&&<Records key={section} entity={section} refs={refs} onChanged={section==='banners'?site.retry:refresh}/>}
       {section==='banners'&&<SiteSettings only={bannerSettings} title="슬라이드 재생 설정" subsection onChanged={site.retry}/>}
       {Object.hasOwn(boardSections,section)&&<Records key={section} entity="content" kind={boardSections[section]} title={titles[section]} general={section==='board-page'} onChanged={site.retry}/>}
       {section!=='dashboard'&&!Object.hasOwn(titles,section)&&!Object.hasOwn(entities,section)&&<h1>관리 메뉴를 찾을 수 없습니다.</h1>}</div>

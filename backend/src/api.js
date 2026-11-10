@@ -5,6 +5,7 @@ import { listBanners } from './banner-text.js';
 import { ApiError, invalid, digest, token, matchesPassword, cookie, accountSession, requireOrigin, rateLimit, readJson, text, choice } from './security.js';
 import { listProducts, product, quote } from './catalog.js';
 import { definitions, saveRecord, settings, saveSettings } from './records.js';
+import { listAdminOffers,saveOfferChanges } from './offer-editor.js';
 import { appearance, saveAppearance, resetAppearance } from './appearance.js';
 import { navigation, saveNavigation } from './navigation.js';
 import { registerPhone } from './phone-registration.js';
@@ -175,6 +176,10 @@ export async function handleApi(request,env,db) {
       if(method==='POST')return json(await importWorkbook(db,id,await body(request,5600000)));
     }
     if(!Object.hasOwn(definitions,action))throw notFound();
+    if(action==='offers'&&!id) {
+      if(method==='GET')return json(await listAdminOffers(db));
+      if(method==='PATCH')return json(await saveOfferChanges(db,(await body(request)).changes));
+    }
     if(method==='GET') {
       if(action==='banners') return json(await listBanners(db));
       if(action==='content'&&searchParams.has('kind')) {

@@ -83,6 +83,31 @@ test('direct links render catalog and gated administrator sign-in',async({page})
   await expect(page.getByRole('heading',{name:'관리자 로그인'})).toBeVisible();
 });
 
+test('administrator reads and saves multiple price conditions directly in the list',async({page})=>{
+  await page.setViewportSize({width:390,height:844});
+  await page.goto('/admin/offers');
+  await page.getByLabel('아이디').fill('browser-admin');
+  await page.getByLabel('비밀번호').fill(process.env.BROWSER_TEST_PASSWORD);
+  await page.getByRole('button',{name:'로그인',exact:true}).click();
+  const search=page.getByRole('searchbox',{name:'가격 조건 검색'});
+  await search.fill('demo-0-skt-0');
+  const skt=page.getByRole('article',{name:'갤럭시 S26 · 256GB · SKT · 5G 예시 요금제 · 기기변경',exact:true});
+  await expect(skt.getByText('demo-0-skt-0',{exact:true})).toBeVisible();
+  await skt.getByLabel('추가 지원금(원)',{exact:true}).fill('175000');
+  await search.fill('demo-0-kt-0');
+  const kt=page.getByRole('article',{name:'갤럭시 S26 · 256GB · KT · 5G 예시 요금제 · 기기변경',exact:true});
+  await kt.getByLabel('공개 조회 매핑',{exact:true}).fill('verified-test-model');
+  await expect(page.getByText(/미저장 2개/)).toBeVisible();
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+  await page.getByRole('button',{name:'변경사항 저장',exact:true}).click();
+  await expect(page.getByText('2개 가격 조건을 저장했습니다.',{exact:true})).toBeVisible();
+  await page.reload();
+  await search.fill('demo-0-skt-0');
+  await expect(skt.getByLabel('추가 지원금(원)',{exact:true})).toHaveValue('175000');
+  await search.fill('demo-0-kt-0');
+  await expect(kt.getByLabel('공개 조회 매핑',{exact:true})).toHaveValue('verified-test-model');
+});
+
 test('administrator can sign in, change the company, and sign out',async({page})=>{
   await page.goto('/admin/contact');
   await page.getByLabel('아이디').fill('browser-admin');

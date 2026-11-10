@@ -179,6 +179,26 @@ async function scenario(db) {
   assert.equal(savedPhone.colors[0].name,'검증 색상');
   const savedAdminPhone=(await request('/admin/products')).data.find(item=>item.id===registered.data.id);
   assert.deepEqual(savedAdminPhone.categories,[category.id]);
+  const listOffers=async()=> (await request('/admin/offers')).data.filter(item=>item.product_id===registered.data.id);
+  const [firstCondition]=await listOffers();
+  assert.equal(firstCondition.product_name,'일괄 등록 휴대폰');
+  assert.equal(firstCondition.carrier,'검증 통신사');
+  const secondCondition=(await request('/admin/offers','POST',{...firstCondition,join_type:'신규가입'})).data;
+  const changes=[
+    {id:firstCondition.id,before:firstCondition,after:{...firstCondition,extra:120000,source_key:'검증-단말'}},
+    {id:secondCondition.id,before:secondCondition,after:{...secondCondition,join_type:'번호이동',extra:100000}}
+  ];
+  const bulk=changes=>request('/admin/offers','PATCH',{changes});
+  assert.equal((await bulk([changes[0],{...changes[1],after:{...changes[1].after,extra:1300000}}])).status,400);
+  assert.equal((await listOffers()).find(row=>row.id===firstCondition.id).extra,150000);
+  assert.equal((await bulk([changes[0],{...changes[1],after:{...changes[1].after,join_type:'기기변경'}}])).data.error.code,'offer_duplicate');
+  assert.equal((await listOffers()).find(row=>row.id===firstCondition.id).extra,150000);
+  assert.deepEqual((await bulk(changes)).data,{saved:2});
+  assert.deepEqual((await bulk(changes)).data,{saved:2});
+  assert.equal((await bulk([{...changes[0],after:{...changes[0].after,extra:110000}}])).data.error.code,'offer_changed');
+  const changedConditions=await listOffers();
+  assert.equal(changedConditions.find(row=>row.id===firstCondition.id).source_key,'검증-단말');
+  assert.equal(changedConditions.find(row=>row.id===secondCondition.id).join_type,'번호이동');
   assert.equal((await request('/admin/plans/'+plan.id,'PUT',{...plan,enabled:0})).status,200);
   assert.deepEqual((await request('/products/'+registered.data.id)).data.offers,[]);
   assert.equal((await request('/quote','POST',{productId:registered.data.id,offerId:savedPhone.offers[0].id,mode:'support',months:24})).status,400);
