@@ -27,7 +27,7 @@ export async function product(db,id) {
   const [item]=await db.all(`SELECT p.*,m.name AS manufacturer FROM products p
     JOIN manufacturers m ON m.id=p.manufacturer_id WHERE p.id=? AND p.status='published'`,[id]);
   if (!item) throw new ApiError(404,'not_found','휴대폰을 찾을 수 없습니다.');
-  const rows=await db.all(offerSql+' WHERE cap.product_id=? AND o.extra<=cap.price',[id]);
+  const rows=await db.all(offerSql+' WHERE cap.product_id=? AND p.enabled=1 AND o.extra<=cap.price',[id]);
   const snapshots=await db.all('SELECT s.* FROM supports s JOIN offers o ON o.id=s.offer_id JOIN capacities c ON c.id=o.capacity_id WHERE c.product_id=?',[id]);
   return {...item,colors:await db.all('SELECT name,image FROM colors WHERE product_id=? ORDER BY name',[id]),offers:rows.map(row=>{
     const result={...row,...pickSupport(row,snapshots.filter(s=>s.offer_id===row.id))};

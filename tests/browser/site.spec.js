@@ -52,6 +52,13 @@ test('direct links render catalog and gated administrator sign-in',async({page})
   await page.getByLabel('할인 방식').selectOption('contract');
   await expect(page.locator('.quote-total strong')).toHaveText('95,500원');
   await expect(page.getByRole('button',{name:'SKT',exact:true})).toHaveAttribute('aria-pressed','true');
+  await page.getByRole('button',{name:'KT',exact:true}).click();
+  await expect(page.getByRole('button',{name:'기기변경',exact:true})).toHaveAttribute('aria-pressed','true');
+  await expect(page.getByRole('button',{name:'256GB',exact:true})).toHaveAttribute('aria-pressed','true');
+  const plans=page.getByLabel('요금제',{exact:true});
+  await expect(plans).toHaveValue('');
+  await plans.selectOption('kt-5g');
+  await expect(page.locator('.quote-total strong')).toHaveText('95,500원');
   await page.goto('/admin/leads');
   await expect(page.getByRole('heading',{name:'관리자 로그인'})).toBeVisible();
 });

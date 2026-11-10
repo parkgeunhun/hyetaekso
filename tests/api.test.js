@@ -178,6 +178,10 @@ async function scenario(db) {
   assert.equal(savedPhone.colors[0].name,'검증 색상');
   const savedAdminPhone=(await request('/admin/products')).data.find(item=>item.id===registered.data.id);
   assert.deepEqual(savedAdminPhone.categories,[category.id]);
+  assert.equal((await request('/admin/plans/'+plan.id,'PUT',{...plan,enabled:0})).status,200);
+  assert.deepEqual((await request('/products/'+registered.data.id)).data.offers,[]);
+  assert.equal((await request('/quote','POST',{productId:registered.data.id,offerId:savedPhone.offers[0].id,mode:'support',months:24})).status,400);
+  assert.ok((await request('/admin/offers')).data.some(item=>item.id===savedPhone.offers[0].id));
   await request('/admin/logout','POST');
   assert.equal((await request('/admin/leads')).status,401);
 }
