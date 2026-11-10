@@ -8,3 +8,6 @@
 .option-row .admin-head{margin-bottom:0}
 .appearance-preview{display:grid;gap:6px;max-width:360px}
 .appearance-preview img{max-height:180px;width:auto;object-fit:contain;object-position:left}
+.admin-sidebar details details{margin-inline-start:11px}
+.admin-sidebar .admin-menu-close{display:none}
+@media(max-width:750px){.admin-sidebar.open .admin-menu-close{display:inline-flex;float:right;min-height:34px}}

@@ -1,5 +1,5 @@
 import { useEffect,useState } from 'react';
-import { Link,NavLink,useParams,useSearchParams } from 'react-router-dom';
+import { Link,useLocation,useParams,useSearchParams } from 'react-router-dom';
 import { api } from '../services/api.js';
 import { useResource } from '../hooks/data.js';
 import { Logo } from '../layouts/SiteLayout.jsx';
@@ -13,27 +13,65 @@ import { boardTitles, menu, serviceTypes } from '../pages/content.js';
 import './admin.css';
 
 const pageSections=Object.fromEntries([['page-home','홈'],...menu.map(([slug,label])=>['page-'+slug,label])]);
+const serviceSections=Object.fromEntries(menu.map(([slug,label])=>['service-'+slug,{slug,label}]));
 const boardSections=Object.fromEntries(Object.keys(boardTitles).map(kind=>['board-'+kind,kind]));
 const settingSections={
   contact:['company','phone','email','hours','address','registration','representative','kakao'],
   privacy:['privacy','consent'],
   terms:['terms']
 };
-const groups=[
-  ['휴대폰 관리',['phone-registration','products','manufacturers','categories','capacities','colors']],
-  ['가격과 지원금',['carriers','plans','offers','supports','sync','excel']],
-  ['공개 페이지',['navigation',...Object.keys(pageSections)]],
-  ['배너·공통 설정',['appearance','banners','contact','privacy','terms','settings']],
-  ['게시판·상품',Object.keys(boardSections)],
-  ['상담 관리',['leads']]
-];
 const titles={
   ...pageSections,
+  ...Object.fromEntries(Object.entries(serviceSections).map(([section,{label}])=>[section,label+' 추가 안내'])),
   ...Object.fromEntries(Object.entries(boardSections).map(([section,kind])=>[section,boardTitles[kind]])),
   sync:'지원금 갱신',excel:'엑셀 일괄 작업',leads:'상담 접수',settings:'사이트 설정',
   appearance:'사이트 이미지·배너 편집',navigation:'메뉴 관리',contact:'회사·고객센터 정보',privacy:'개인정보처리방침',
   terms:'이용약관','phone-registration':'휴대폰 등록'
 };
+const link=(section,label=entities[section]?.title||titles[section])=>({section,label});
+const consultation=service=>({section:'leads',service,label:service+' 상담'});
+const serviceConsultations={
+  telecom:['휴대폰','인터넷','TV'],
+  rental:['렌탈'],
+  moving:['이사·홈'],
+  space:['공간'],
+  mobility:['모빌리티'],
+  business:['사업자 서비스'],
+  franchise:['가맹안내','제휴·입점'],
+  support:['고객문의','고객의 소리']
+};
+const serviceTools={
+  telecom:[
+    {label:'휴대폰 관리',items:['phone-registration','products','manufacturers','categories','capacities','colors'].map(section=>link(section))},
+    {label:'요금제·지원금',items:['carriers','plans','offers','supports','sync'].map(section=>link(section))}
+  ],
+  rental:[link('board-rental')],
+  support:[link('leads','전체 상담'),...['board-notice','board-faq','board-review','board-qna','contact','privacy','terms'].map(section=>link(section))]
+};
+const groups=[
+  {label:'홈',items:[link('page-home','홈 화면·배너'),link('banners')]},
+  ...menu.map(([slug,label])=>({label,items:[
+    link('page-'+slug,'화면·배너'),
+    link('service-'+slug,'추가 안내'),
+    ...(serviceTools[slug]??[]),
+    ...(serviceConsultations[slug]??[]).map(consultation)
+  ]})),
+  {label:'공통 설정',items:[link('navigation'),link('appearance','공통 이미지·배너'),link('board-page','전체 서비스 안내'),link('settings'),link('excel')]}
+];
+
+function SidebarItem({item,isActive,onNavigate}) {
+  if(item.items) {
+    const hasActive=entry=>entry.items?entry.items.some(hasActive):isActive(entry);
+    return <details open={item.items.some(hasActive)||undefined}>
+      <summary>{item.label}</summary>
+      {item.items.map(entry=><SidebarItem key={entry.service??entry.section??entry.label} item={entry} isActive={isActive} onNavigate={onNavigate}/>)}
+    </details>;
+  }
+  const path=item.section==='dashboard'?'/admin':'/admin/'+item.section;
+  const target=item.service?path+'?'+new URLSearchParams({service:item.service}):path;
+  const active=isActive(item);
+  return <Link to={target} className={active?'active':undefined} aria-current={active?'page':undefined} onClick={onNavigate}>{item.label}</Link>;
+}
 const time=value=>value?new Date(Number(value)).toLocaleString('ko-KR'):'기록 없음';
 function Login({onLogin,logo}) {
   const [error,setError]=useState(''),[busy,setBusy]=useState(false);
@@ -62,7 +100,7 @@ function Leads() {
     event.preventDefault();setBusy(true);setMessage('');
     try {await api('/admin/leads/'+id,{method:'PATCH',body:{status,notes}});resource.retry();setMessage('상담 상태를 저장했습니다.');}catch(error){setMessage(error.message);}finally{setBusy(false);}
   }
-  return <><h1>상담 접수</h1><section className="admin-panel"><form className="filters" onSubmit={e=>{e.preventDefault();filter({q:query});}}><label>상태<select value={params.get('status')||''} onChange={e=>filter({status:e.target.value})}><option value="">전체</option>{leadStates.map(state=><option key={state}>{state}</option>)}</select></label><label>상담 유형<select value={params.get('service')||''} onChange={e=>filter({service:e.target.value})}><option value="">전체</option>{serviceTypes.map(service=><option key={service}>{service}</option>)}</select></label><label>신청번호·이름·전화<input type="search" value={query} onChange={e=>setQuery(e.target.value)}/></label><button className="btn">검색</button></form>
+  return <><h1>{params.get('service')?params.get('service')+' 상담':'상담 접수'}</h1><section className="admin-panel"><form className="filters" onSubmit={e=>{e.preventDefault();filter({q:query});}}><label>상태<select value={params.get('status')||''} onChange={e=>filter({status:e.target.value})}><option value="">전체</option>{leadStates.map(state=><option key={state}>{state}</option>)}</select></label><label>상담 유형<select value={params.get('service')||''} onChange={e=>filter({service:e.target.value})}><option value="">전체</option>{serviceTypes.map(service=><option key={service}>{service}</option>)}</select></label><label>신청번호·이름·전화<input type="search" value={query} onChange={e=>setQuery(e.target.value)}/></label><button className="btn">검색</button></form>
     <Status resource={resource}/><div className="table-scroll"><table><thead><tr><th>신청번호</th><th>이름</th><th>유형</th><th>상태</th><th>접수 시간</th><th>상세</th></tr></thead><tbody>{resource.data?.items.map(item=><tr key={item.id}><td>{item.receipt}</td><td>{item.name}</td><td>{item.service}</td><td>{item.status}</td><td>{time(item.created_at)}</td><td><button className="btn" onClick={()=>setId(item.id)}>보기</button></td></tr>)}</tbody></table></div>{resource.data&&!resource.data.items.length&&<p className="message">해당 상담이 없습니다.</p>}
     <div className="actions"><button className="btn" disabled={Number(params.get('page')||0)<1} onClick={()=>filter({page:String(Number(params.get('page')||0)-1)})}>이전</button><button className="btn" disabled={!resource.data?.more} onClick={()=>filter({page:String(Number(params.get('page')||0)+1)})}>다음</button></div></section>
     {id&&<Modal title="상담 상세" onClose={()=>{if(!busy)setId('');}}><Status resource={detail}/>{detail.data?.id===id&&<form className="form-stack" onSubmit={save}><p>{detail.data.receipt} · {detail.data.service}</p><p>{detail.data.name} · {detail.data.phone} · {detail.data.birth}</p><p className="preserve">{detail.data.details}</p>
@@ -80,6 +118,11 @@ function Sync() {
 }
 function Workspace({user,logout,site}) {
   const {section='dashboard'}=useParams(),[refs,setRefs]=useState({}),[error,setError]=useState(''),[nav,setNav]=useState(false);
+  const {search}=useLocation();
+  const service=section==='leads'?new URLSearchParams(search).get('service')||'':'';
+  const isActive=item=>item.section===section&&(item.service??'')===service;
+  const servicePage=Object.hasOwn(serviceSections,section)?serviceSections[section]:null;
+  const closeMenu=()=>setNav(false);
   async function refresh() {
     try {
       const keys=['manufacturers','categories','products','capacities','carriers','plans','offers'];
@@ -88,22 +131,23 @@ function Workspace({user,logout,site}) {
     } catch(error) {setError(error.message);}
   }
   useEffect(()=>{refresh();},[]);
-  useEffect(()=>{setNav(false);window.scrollTo(0,0);},[section]);
-  return <div className="admin-shell"><aside className={'admin-sidebar '+(nav?'open':'')}><Logo image={site.data?.appearance?.logo?.image}/><span className="admin-sidebar-label">관리자</span><nav aria-label="관리 메뉴"><NavLink end to="/admin">대시보드</NavLink>
-    {groups.map(([label,keys])=><details key={label} open={keys.includes(section)||undefined}><summary>{label}</summary>{keys.map(key=><NavLink key={key} to={'/admin/'+key}>{entities[key]?.title||titles[key]}</NavLink>)}</details>)}</nav><button className="btn" onClick={logout}>로그아웃</button></aside>
-    <main className="admin-main"><header className="admin-toolbar"><button className="btn admin-menu-toggle" aria-expanded={nav} onClick={()=>setNav(!nav)}>관리 메뉴 ☰</button><span>혜택소 관리자 › {entities[section]?.title||titles[section]||'대시보드'}</span><span>{user.username}</span></header>
+  useEffect(()=>{setNav(false);window.scrollTo(0,0);},[section,service]);
+  return <div className="admin-shell"><aside id="admin-sidebar" className={'admin-sidebar '+(nav?'open':'')}><Logo image={site.data?.appearance?.logo?.image}/><button type="button" className="btn admin-menu-close" onClick={closeMenu}>메뉴 닫기</button><span className="admin-sidebar-label">관리자</span>
+    <nav aria-label="관리 메뉴">
+      <SidebarItem item={link('dashboard','대시보드')} isActive={isActive} onNavigate={closeMenu}/>
+      {groups.map(group=><SidebarItem key={group.label} item={group} isActive={isActive} onNavigate={closeMenu}/>)}
+    </nav><button className="btn" onClick={logout}>로그아웃</button></aside>
+    <main className="admin-main"><header className="admin-toolbar"><button className="btn admin-menu-toggle" aria-controls="admin-sidebar" aria-expanded={nav} onClick={()=>setNav(!nav)}>관리 메뉴 ☰</button><span>혜택소 관리자 › {service?service+' 상담':entities[section]?.title||titles[section]||'대시보드'}</span><span>{user.username}</span></header>
       <div className="admin-work">{error&&<p role="alert" className="message error">{error} <button className="btn" onClick={refresh}>다시 시도</button></p>}
       {section==='dashboard'&&<Dashboard/>}
       {section==='appearance'&&<AppearanceEditor onChanged={site.retry}/>}
-      {Object.hasOwn(pageSections,section)&&<>
-        <AppearanceEditor key={section} page={pageSections[section]} onChanged={site.retry}/>
-        {section!=='page-home'&&<Records key={section+'-content'} entity="content" kind="page" category={'service:'+section.slice(5)} title={pageSections[section]+' 추가 안내'} onChanged={site.retry}/>}
-      </>}
+      {Object.hasOwn(pageSections,section)&&<AppearanceEditor key={section} page={pageSections[section]} onChanged={site.retry}/>}
+      {servicePage&&<Records key={section} entity="content" kind="page" category={'service:'+servicePage.slug} title={titles[section]} onChanged={site.retry}/>}
       {section==='navigation'&&<NavigationEditor onChanged={site.retry}/>}
       {section==='phone-registration'&&<PhoneRegistration refs={refs} onChanged={refresh}/>}
       {(section==='settings'||Object.hasOwn(settingSections,section))&&<SiteSettings key={section} only={settingSections[section]} title={titles[section]} onChanged={site.retry}/>}
       {section==='excel'&&<Excel/>}
-      {section==='leads'&&<Leads/>}
+      {section==='leads'&&<Leads key={service}/>}
       {section==='sync'&&<Sync/>}
       {Object.hasOwn(entities,section)&&<Records key={section} entity={section} refs={refs} onChanged={refresh}/>}
       {Object.hasOwn(boardSections,section)&&<Records key={section} entity="content" kind={boardSections[section]} onChanged={site.retry}/>}

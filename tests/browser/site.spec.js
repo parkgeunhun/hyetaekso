@@ -96,7 +96,12 @@ test('administrator changes the public banner and registers a phone with pricing
   await expect(page.locator('.hero-home img')).toHaveAttribute('src',url);
   expect((await page.request.get(url)).headers()['content-type']).toBe('image/png');
 
-  await page.goto('/admin/phone-registration');
+  await page.goto('/admin/page-telecom');
+  const adminMenu=page.getByRole('navigation',{name:'관리 메뉴'});
+  const telecom=adminMenu.getByText('통신',{exact:true}).locator('..');
+  await telecom.getByText('휴대폰 관리',{exact:true}).click();
+  await telecom.getByRole('link',{name:'휴대폰 등록',exact:true}).click();
+  await expect(telecom.getByRole('link',{name:'휴대폰 등록',exact:true})).toHaveAttribute('aria-current','page');
   await page.getByLabel('제조사').selectOption('samsung');
   await page.getByLabel('모델명').fill('등록 확인 휴대폰');
   await page.getByLabel('공개 상태').selectOption('published');

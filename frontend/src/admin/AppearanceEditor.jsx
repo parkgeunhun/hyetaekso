@@ -75,7 +75,10 @@ export default function AppearanceEditor({onChanged, page}) {
   return <>
     <div className="admin-head">
       <div><h1>{page ? page+' 화면 편집' : '사이트 이미지·배너 편집'}</h1><p>공개 화면의 사진, 배너 문구와 서비스 안내를 편집합니다.</p></div>
-      <Link className="btn" to={slot.path} target="_blank" rel="noopener">공개 화면 열기</Link>
+      <div className="actions">
+        {page&&page!=='홈'&&<Link className="btn" to={'/admin/service-'+slot.path.slice(1)}>추가 안내 관리</Link>}
+        <Link className="btn" to={slot.path} target="_blank" rel="noopener">공개 화면 열기</Link>
+      </div>
     </div>
     <div className="admin-panel filters">
       {!page&&<label>편집할 화면<select aria-label="편집할 화면" value={group} onChange={e=>setGroup(e.target.value)}>
