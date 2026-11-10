@@ -83,10 +83,10 @@ function Workspace({user,logout,site}) {
     </main></div>;
 }
 export default function Admin() {
-  const site=useResource('/site');
   const resource=useResource('/admin/session'),[user,setUser]=useState(null),[loggedOut,setLoggedOut]=useState(false),[error,setError]=useState('');
   useEffect(()=>{document.title='관리자 | 혜택소';},[]);
   const account=loggedOut?null:user||resource.data;
+  const site=useResource(account?'/site':null);
   if(resource.loading&&!account)return <main className="login-page"><p>관리자 세션 확인 중…</p></main>;
   if(!account) {
     if(resource.error&&resource.error.status!==401&&!loggedOut)return <main className="login-page"><Status resource={resource}/></main>;

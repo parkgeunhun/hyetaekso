@@ -56,9 +56,13 @@ export async function handleApi(request,env,db) {
   try {
     if(prefix!=='api'||extra)throw notFound();
     if(method!=='GET'&&method!=='HEAD')requireOrigin(request,env);
+    if(env.PRIVATE_PREVIEW&&area!=='admin'&&!await accountSession(request,db)) {
+      throw new ApiError(401,'login_required','미리보기 데이터를 보려면 관리자 로그인이 필요합니다.');
+    }
     if(area==='media'&&['GET','HEAD'].includes(method)&&/^[a-f0-9-]{36}\.(jpg|png|webp|gif|mp4|webm)$/.test(action??'')) {
       const response=env.MEDIA&&await serveMedia(env.MEDIA,action,request);
       if(!response)throw notFound();
+      if(env.PRIVATE_PREVIEW)response.headers.set('Cache-Control','private, no-store');
       return response;
     }
     if(area==='site'&&method==='GET') return json({settings:await settings(db),appearance:await appearance(db),banners:await db.all('SELECT * FROM banners WHERE enabled=1 ORDER BY sort_order,id LIMIT 12')});
