@@ -1,5 +1,5 @@
 import { useEffect,useState } from 'react';
-import { Link,useLocation,useParams,useSearchParams } from 'react-router-dom';
+import { Link,useParams,useSearchParams } from 'react-router-dom';
 import { api } from '../services/api.js';
 import { useResource } from '../hooks/data.js';
 import { Logo } from '../layouts/SiteLayout.jsx';
@@ -40,32 +40,20 @@ const titles={
   'support-sources':'지원금 조회 주소','intake-settings':'상담 접수 설정','board-page':'일반 안내 게시판'
 };
 const link=(section,label=entities[section]?.title||titles[section])=>({section,label});
-const consultation=service=>({section:'leads',service,label:service+' 상담'});
-const serviceConsultations={
-  telecom:['휴대폰','인터넷','TV'],
-  rental:['렌탈'],
-  moving:['이사·홈'],
-  space:['공간'],
-  mobility:['모빌리티'],
-  business:['사업자 서비스'],
-  franchise:['가맹안내','제휴·입점'],
-  support:['고객문의','고객의 소리']
-};
 const serviceTools={
   telecom:[
     {label:'휴대폰 관리',items:['phone-registration','products','manufacturers','categories','capacities','colors','phone-guide'].map(section=>link(section))},
     {label:'요금제·지원금',items:['carriers','plans','offers','supports','sync','support-sources'].map(section=>link(section))}
   ],
   rental:[link('board-rental')],
-  support:[link('leads','전체 상담'),...['intake-settings','board-notice','board-faq','board-review','board-qna','board-page','contact','privacy','terms'].map(section=>link(section))]
+  support:['board-notice','board-faq','board-review','board-qna','board-page','contact','privacy','terms'].map(section=>link(section))
 };
 const groups=[
   {label:'홈',items:[link('page-home','홈 기본 화면'),link('banners')]},
   ...menu.map(([slug,label])=>({label,items:[
     link('page-'+slug,'화면·배너'),
     link('service-'+slug,'추가 안내'),
-    ...(serviceTools[slug]??[]),
-    ...(serviceConsultations[slug]??[]).map(consultation)
+    ...(serviceTools[slug]??[])
   ]})),
   {label:'이미지',items:Object.keys(imageSections).map(section=>link(section))},
   {label:'공통 설정',items:[link('navigation'),link('appearance'),link('settings'),link('excel')]}
@@ -76,13 +64,12 @@ function SidebarItem({item,isActive,onNavigate}) {
     const hasActive=entry=>entry.items?entry.items.some(hasActive):isActive(entry);
     return <details open={item.items.some(hasActive)||undefined}>
       <summary>{item.label}</summary>
-      {item.items.map(entry=><SidebarItem key={entry.service??entry.section??entry.label} item={entry} isActive={isActive} onNavigate={onNavigate}/>)}
+      {item.items.map(entry=><SidebarItem key={entry.section??entry.label} item={entry} isActive={isActive} onNavigate={onNavigate}/>)}
     </details>;
   }
   const path=item.section==='dashboard'?'/admin':'/admin/'+item.section;
-  const target=item.service?path+'?'+new URLSearchParams({service:item.service}):path;
   const active=isActive(item);
-  return <Link to={target} className={active?'active':undefined} aria-current={active?'page':undefined} onClick={onNavigate}>{item.label}</Link>;
+  return <Link to={path} className={active?'active':undefined} aria-current={active?'page':undefined} onClick={onNavigate}>{item.label}</Link>;
 }
 const time=(value,timeZone)=>value?new Date(Number(value)).toLocaleString('ko-KR',{timeZone}):'기록 없음';
 const syncLabels={unconfigured:'연결 설정 필요',success:'갱신 완료',partial:'일부 갱신',empty:'일치 조건 없음',failed:'갱신 실패'};
@@ -104,16 +91,30 @@ function Dashboard() {
   </>;
 }
 function Leads() {
-  const [params,setParams]=useSearchParams(),[id,setId]=useState(''),[query,setQuery]=useState(params.get('q')||'');
+  const [params,setParams]=useSearchParams(),[id,setId]=useState('');
+  const appliedQuery=params.get('q')||'';
+  const [query,setQuery]=useState(appliedQuery);
   const resource=useResource('/admin/leads?'+params.toString()),detail=useResource(id?'/admin/leads/'+id:null);
   const [status,setStatus]=useState(''),[notes,setNotes]=useState(''),[message,setMessage]=useState(''),[busy,setBusy]=useState(false);
+  useEffect(()=>setQuery(appliedQuery),[appliedQuery]);
   useEffect(()=>{if(detail.data?.id===id&&detail.data){setStatus(detail.data.status);setNotes(detail.data.notes);setMessage('');}},[detail.data,id]);
-  function filter(values) {setParams({...Object.fromEntries(params),page:'0',...values});}
+  function filter(values) {
+    const next={...Object.fromEntries(params),page:'',...values};
+    setParams(Object.fromEntries(Object.entries(next).filter(([,value])=>value)));
+  }
   async function save(event) {
     event.preventDefault();setBusy(true);setMessage('');
     try {await api('/admin/leads/'+id,{method:'PATCH',body:{status,notes}});resource.retry();setMessage('상담 상태를 저장했습니다.');}catch(error){setMessage(error.message);}finally{setBusy(false);}
   }
-  return <><h1>{params.get('service')?params.get('service')+' 상담':'상담 접수'}</h1><section className="admin-panel"><form className="filters" onSubmit={e=>{e.preventDefault();filter({q:query});}}><label>상태<select value={params.get('status')||''} onChange={e=>filter({status:e.target.value})}><option value="">전체</option>{leadStates.map(state=><option key={state}>{state}</option>)}</select></label><label>상담 유형<select value={params.get('service')||''} onChange={e=>filter({service:e.target.value})}><option value="">전체</option>{serviceTypes.map(service=><option key={service}>{service}</option>)}</select></label><label>신청번호·이름·전화<input type="search" value={query} onChange={e=>setQuery(e.target.value)}/></label><button className="btn">검색</button></form>
+  return <><div className="admin-head"><div><h1>상담 접수</h1><p>모든 상담을 한곳에서 확인하고 유형이나 상태별로 조회할 수 있습니다.</p></div><Link className="btn" to="/admin/intake-settings">상담 접수 설정</Link></div>
+    <section className="admin-panel"><form className="filters" onSubmit={e=>{e.preventDefault();filter({q:query.trim()});}}>
+      <label>상담 유형<select value={params.get('service')||''} onChange={e=>filter({service:e.target.value})}><option value="">전체 유형</option>{serviceTypes.map(service=><option key={service}>{service}</option>)}</select></label>
+      <label>상태<select value={params.get('status')||''} onChange={e=>filter({status:e.target.value})}><option value="">전체 상태</option>{leadStates.map(state=><option key={state}>{state}</option>)}</select></label>
+      <label>신청번호·이름·전화<input type="search" value={query} onChange={e=>setQuery(e.target.value)}/></label>
+      <button className="btn">검색</button>
+      <button className="btn" type="button" onClick={()=>{setQuery('');setParams({});}}>초기화</button>
+    </form>
+    {params.get('overdue')==='1'&&<p className="message">접수 후 24시간이 지난 상담만 표시합니다.</p>}
     <Status resource={resource}/><div className="table-scroll"><table><thead><tr><th>신청번호</th><th>이름</th><th>유형</th><th>상태</th><th>접수 시간</th><th>상세</th></tr></thead><tbody>{resource.data?.items.map(item=><tr key={item.id}><td>{item.receipt}</td><td>{item.name}</td><td>{item.service}</td><td>{item.status}</td><td>{time(item.created_at)}</td><td><button className="btn" onClick={()=>setId(item.id)}>보기</button></td></tr>)}</tbody></table></div>{resource.data&&!resource.data.items.length&&<p className="message">해당 상담이 없습니다.</p>}
     <div className="actions"><button className="btn" disabled={Number(params.get('page')||0)<1} onClick={()=>filter({page:String(Number(params.get('page')||0)-1)})}>이전</button><button className="btn" disabled={!resource.data?.more} onClick={()=>filter({page:String(Number(params.get('page')||0)+1)})}>다음</button></div></section>
     {id&&<Modal title="상담 상세" onClose={()=>{if(!busy)setId('');}}><Status resource={detail}/>{detail.data?.id===id&&<form className="form-stack" onSubmit={save}><p>{detail.data.receipt} · {detail.data.service}</p><p>{detail.data.name} · {detail.data.phone} · {detail.data.birth}</p><p className="preserve">{detail.data.details}</p>
@@ -160,9 +161,7 @@ function Sync() {
 }
 function Workspace({user,logout,site}) {
   const {section='dashboard'}=useParams(),[refs,setRefs]=useState({}),[error,setError]=useState(''),[nav,setNav]=useState(false);
-  const {search}=useLocation();
-  const service=section==='leads'?new URLSearchParams(search).get('service')||'':'';
-  const isActive=item=>item.section===section&&(item.service??'')===service;
+  const isActive=item=>item.section===section;
   const servicePage=Object.hasOwn(serviceSections,section)?serviceSections[section]:null;
   const closeMenu=()=>setNav(false);
   async function refresh() {
@@ -173,13 +172,14 @@ function Workspace({user,logout,site}) {
     } catch(error) {setError(error.message);}
   }
   useEffect(()=>{refresh();},[]);
-  useEffect(()=>{setNav(false);window.scrollTo(0,0);},[section,service]);
+  useEffect(()=>{setNav(false);window.scrollTo(0,0);},[section]);
   return <div className="admin-shell"><aside id="admin-sidebar" className={'admin-sidebar '+(nav?'open':'')}><Logo image={site.data?.appearance?.logo?.image}/><button type="button" className="btn admin-menu-close" onClick={closeMenu}>메뉴 닫기</button><span className="admin-sidebar-label">관리자</span>
     <nav aria-label="관리 메뉴">
       <SidebarItem item={link('dashboard','대시보드')} isActive={isActive} onNavigate={closeMenu}/>
+      <SidebarItem item={link('leads','상담')} isActive={isActive} onNavigate={closeMenu}/>
       {groups.map(group=><SidebarItem key={group.label} item={group} isActive={isActive} onNavigate={closeMenu}/>)}
     </nav><button className="btn" onClick={logout}>로그아웃</button></aside>
-    <main className="admin-main"><header className="admin-toolbar"><button className="btn admin-menu-toggle" aria-controls="admin-sidebar" aria-expanded={nav} onClick={()=>setNav(!nav)}>관리 메뉴 ☰</button><span>혜택소 관리자 › {service?service+' 상담':entities[section]?.title||titles[section]||'대시보드'}</span><span>{user.username}</span></header>
+    <main className="admin-main"><header className="admin-toolbar"><button className="btn admin-menu-toggle" aria-controls="admin-sidebar" aria-expanded={nav} onClick={()=>setNav(!nav)}>관리 메뉴 ☰</button><span>혜택소 관리자 › {entities[section]?.title||titles[section]||'대시보드'}</span><span>{user.username}</span></header>
       <div className="admin-work">{error&&<p role="alert" className="message error">{error} <button className="btn" onClick={refresh}>다시 시도</button></p>}
       {section==='dashboard'&&<Dashboard/>}
       {section==='appearance'&&<AppearanceEditor page="공통" onChanged={site.retry}/>}
@@ -190,7 +190,7 @@ function Workspace({user,logout,site}) {
       {section==='phone-registration'&&<PhoneRegistration refs={refs} onChanged={refresh}/>}
       {Object.hasOwn(settingSections,section)&&<SiteSettings key={section} only={settingSections[section]} title={titles[section]} onChanged={site.retry}/>}
       {section==='excel'&&<Excel/>}
-      {section==='leads'&&<Leads key={service}/>}
+      {section==='leads'&&<Leads/>}
       {section==='sync'&&<Sync/>}
       {section==='offers'&&<OfferEditor refs={refs} onChanged={refresh}/>}
       {section!=='offers'&&Object.hasOwn(entities,section)&&<Records key={section} entity={section} refs={refs} onChanged={section==='banners'?site.retry:refresh}/>}

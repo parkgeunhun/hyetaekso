@@ -22,7 +22,7 @@ test('service pages and mobile menu work without horizontal overflow',async({pag
   expect(errors).toEqual([]);
 });
 
-test('a real consultation saves and can be looked up by receipt',async({page})=>{
+test('consultations can be looked up by receipt and filtered in a single admin list',async({page})=>{
   await page.goto('/consult?service=렌탈');
   await page.getByLabel('이름',{exact:true}).fill('검증 고객');
   await page.getByLabel('휴대폰 번호',{exact:true}).fill('01000000000');
@@ -36,6 +36,34 @@ test('a real consultation saves and can be looked up by receipt',async({page})=>
   await page.getByLabel('신청 당시 휴대폰 번호',{exact:true}).fill('01000000000');
   await page.getByRole('button',{name:'조회',exact:true}).click();
   await expect(page.getByText('렌탈 · 접수완료')).toBeVisible();
+  const internet=await page.request.post('/api/consultations',{
+    headers:{Origin:new URL(page.url()).origin},
+    data:{requestKey:crypto.randomUUID(),service:'인터넷',name:'검증 고객',phone:'01000000000',consent:true}
+  });
+  expect(internet.status()).toBe(201);
+  const otherReceipt=(await internet.json()).receipt;
+  await page.goto('/admin');
+  await page.getByLabel('아이디').fill('browser-admin');
+  await page.getByLabel('비밀번호').fill(process.env.BROWSER_TEST_PASSWORD);
+  await page.getByRole('button',{name:'로그인',exact:true}).click();
+  const nav=page.getByRole('navigation',{name:'관리 메뉴'});
+  const consultations=nav.getByRole('link',{name:'상담',exact:true});
+  await expect(consultations).toBeVisible();
+  expect(await consultations.evaluate(node=>node.nextElementSibling.querySelector('summary').textContent)).toBe('홈');
+  await expect(nav.locator('a[href^="/admin/leads"]')).toHaveCount(1);
+  await consultations.click();
+  await expect(consultations).toHaveAttribute('aria-current','page');
+  const type=page.getByRole('combobox',{name:'상담 유형',exact:true});
+  await expect(type).toHaveValue('');
+  await expect(page.getByText(receipt,{exact:true})).toBeVisible();
+  await expect(page.getByText(otherReceipt,{exact:true})).toBeVisible();
+  await type.selectOption('렌탈');
+  await expect(page.getByText(receipt,{exact:true})).toBeVisible();
+  await expect(page.getByText(otherReceipt,{exact:true})).toHaveCount(0);
+  await expect(consultations).toHaveAttribute('aria-current','page');
+  await page.getByRole('button',{name:'초기화',exact:true}).click();
+  await expect(page.getByText(otherReceipt,{exact:true})).toBeVisible();
+  await expect(page.getByRole('link',{name:'상담 접수 설정',exact:true})).toHaveAttribute('href','/admin/intake-settings');
 });
 
 test('direct links render catalog and gated administrator sign-in',async({page})=>{
