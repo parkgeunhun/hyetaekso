@@ -7,8 +7,6 @@ import { Art, Status } from '../components/common.jsx';
 import { EditorFields } from './Editors.jsx';
 import BannerTextEditor from './BannerTextEditor.jsx';
 
-const bannerCopyFields = new Set(['kicker','headline','subtitle','description']);
-
 function initialForm(slot, values) {
   return {
     ...Object.fromEntries((slot.fields ?? []).map(([key, , fallback]) => [key, fallback ?? ''])),
@@ -23,7 +21,7 @@ function SlotEditor({slot, saved, onChanged}) {
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
   const mediaFields = slot.textOnly ? [] : [['image', slot.hero ? '배너 이미지' : '이미지', 'picture']];
-  const otherFields = (slot.fields ?? []).filter(([key])=>!slot.hero||!bannerCopyFields.has(key))
+  const otherFields = slot.hero ? [] : (slot.fields ?? [])
     .map(([key, label]) => [key, label, key === 'description' ? 'area' : 'text']);
   const mediaCategory=slot.path==='/mobility'?'car':slot.hero?'banner':'other';
 
@@ -53,10 +51,7 @@ function SlotEditor({slot, saved, onChanged}) {
       <EditorFields fields={mediaFields} form={form} setForm={setForm} mediaCategory={mediaCategory}/>
       {slot.hero&&<BannerTextEditor hero={heroAppearance(slot.hero,form)} form={form} home={slot.key==='home-hero'}
         onChange={layers=>setForm(current=>({...current,layers}))}/>}
-      {otherFields.length>0&&(slot.hero?<details>
-        <summary>버튼·특징·진행 단계 문구</summary>
-        <div className="form-stack"><EditorFields fields={otherFields} form={form} setForm={setForm}/></div>
-      </details>:<EditorFields fields={otherFields} form={form} setForm={setForm}/>)}
+      {otherFields.length>0&&<EditorFields fields={otherFields} form={form} setForm={setForm}/>}
       <div className="actions">
         <button className="btn primary" type="submit">{busy ? '처리 중…' : '화면 설정 저장'}</button>
         <button className="btn" type="button" onClick={event=>apply(event, true)}>기본값 복원</button>
