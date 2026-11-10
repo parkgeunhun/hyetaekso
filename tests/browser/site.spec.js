@@ -33,6 +33,7 @@ test('insurance shares the public header and the dark mode choice survives a rel
     await page.setViewportSize({width,height:900});
     const [button,action]=await Promise.all([toggle.boundingBox(),consult.boundingBox()]);
     expect(button.x+button.width).toBeLessThan(action.x);
+    expect((await toggle.locator('svg').boundingBox()).width).toBe(18);
     expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
   }
   await toggle.click();

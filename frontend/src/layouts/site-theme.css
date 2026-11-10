@@ -1,6 +1,6 @@
 .site-shell{min-height:100dvh}
 .header-actions{display:flex;align-items:center;gap:7px}
-.header-contact .theme-toggle{width:36px;padding:0}
+.header-contact .btn.theme-toggle{width:36px;padding:0}
 
 [data-site-theme=dark] .site-shell{
   color-scheme:dark;
