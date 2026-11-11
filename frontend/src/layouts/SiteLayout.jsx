@@ -36,6 +36,10 @@ export default function SiteLayout() {
   },[favicon]);
   useEffect(()=>{setMenuOpen(false);window.scrollTo(0,0);},[location.pathname]);
   useEffect(()=>{
+    if(location.pathname.replace(/\/+$/,'')==='/catalog')return;
+    void fetch('/api/page-views',{method:'POST',keepalive:true,credentials:'omit'}).catch(()=>{});
+  },[location.pathname]);
+  useEffect(()=>{
     const key=location.pathname.split('/')[1];
     document.title=(menuLabel(key,navigation)??({phones:'휴대폰',consult:'상담 신청',lookup:'상담 조회'}[key]||'생활에 필요한 혜택'))+' | 혜택소';
   },[location.pathname,navigation]);

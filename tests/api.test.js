@@ -7,6 +7,7 @@ import { handleApi } from '../backend/src/api.js';
 import { databaseMedia } from '../backend/src/media-store.js';
 import { passwordHash } from '../backend/src/security.js';
 import { saveRecord } from '../backend/src/records.js';
+import { koreaDay, recentPageViews, recordPageView } from '../backend/src/page-views.js';
 
 const origin='http://127.0.0.1:5173',env={APP_ORIGIN:origin,LOCAL_DEV:true};
 async function scenario(db) {
@@ -18,6 +19,9 @@ async function scenario(db) {
   };
   assert.equal((await request('/admin/products')).status,401);
   assert.equal((await request('/admin/media')).status,401);
+  assert.equal((await request('/admin/dashboard')).status,401);
+  assert.equal((await request('/page-views','POST',undefined,'https://wrong.test')).status,403);
+  assert.equal((await request('/page-views','POST')).status,204);
   assert.equal((await request('/admin/leads','POST',{})).status,401);
   assert.equal((await request('/admin/leads','DELETE',{ids:[crypto.randomUUID()]})).status,401);
   const user='test-'+crypto.randomUUID().slice(0,8),password=crypto.randomUUID();
@@ -44,6 +48,14 @@ async function scenario(db) {
   assert.deepEqual(JSON.parse(createdDetail.consent),{source:'manual',registeredBy:user,registeredAt:Number(createdDetail.created_at)});
   const secondLead=await request('/admin/leads','POST',{...manualLead,requestKey:crypto.randomUUID(),service:'휴대폰'});
   assert.equal(secondLead.status,201);
+  const {start}=koreaDay();
+  await db.run('UPDATE leads SET created_at=? WHERE id=?',[start-1,secondLead.data.id]);
+  const todayDashboard=await request('/admin/dashboard');
+  assert.equal(todayDashboard.status,200);
+  assert.equal(Number(todayDashboard.data.newLeadsToday),1);
+  assert.equal(todayDashboard.data.pageViews.length,30);
+  assert.equal(todayDashboard.data.pageViews.at(-1).views,1);
+  assert.deepEqual((await request('/admin/leads?today=1')).data.items.map(item=>item.id),[manualCreated.data.id]);
   const leadIds=[manualCreated.data.id,secondLead.data.id];
   assert.equal((await request('/admin/leads','DELETE',{ids:[]})).status,400);
   assert.equal((await request('/admin/leads','DELETE',{ids:leadIds},'https://wrong.test')).status,403);
@@ -240,6 +252,20 @@ async function scenario(db) {
   assert.equal((await request('/admin/leads')).status,401);
 }
 test('SQLite API workflow and workbook',async()=>{const db=await sqlite(':memory:');try{await scenario(db);}finally{db.close();}});
+test('page views roll over at midnight in Korea and distinguish untracked days',async()=>{
+  const db=await sqlite(':memory:');
+  const midnight=Date.parse('2026-11-11T15:00:00Z');
+  try {
+    await Promise.all(Array.from({length:5},()=>recordPageView(db,midnight-1)));
+    await recordPageView(db,midnight);
+    const points=await recentPageViews(db,midnight+86400000);
+    assert.equal(points.length,30);
+    assert.deepEqual(points.slice(-4),[
+      {day:'2026-11-10',views:null},{day:'2026-11-11',views:5},
+      {day:'2026-11-12',views:1},{day:'2026-11-13',views:0}
+    ]);
+  } finally {db.close();}
+});
 test('private preview exposes the published catalog and its covers to visitors',async()=>{
   const db=await sqlite(':memory:');
   const previewOrigin='https://preview.example';

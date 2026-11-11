@@ -140,6 +140,7 @@ export default function Leads() {
         <button className="btn">검색</button>
         <button className="btn" type="button" onClick={()=>{setQuery('');setParams({});}}>초기화</button>
       </form>
+      {params.get('today')==='1'&&<p className="message">오늘 접수된 상담을 표시합니다. 한국시간 기준</p>}
       {params.get('overdue')==='1'&&<p className="message">접수 후 24시간이 지난 상담만 표시합니다.</p>}
       <div className="actions">
         <button className="btn danger" type="button" disabled={!selectedIds.length}

@@ -83,11 +83,62 @@ function Login({onLogin,logo}) {
   }
   return <main className="login-page"><form className="form-panel" onSubmit={submit}><Logo image={logo}/><h1>관리자 로그인</h1><p>혜택소 운영 계정으로 로그인하세요.</p><label>아이디<input name="username" autoComplete="username" required/></label><label>비밀번호<input name="password" type="password" autoComplete="current-password" required/></label>{error&&<p role="alert" className="message error">{error}</p>}<button className="btn primary" disabled={busy}>{busy?'로그인 중…':'로그인'}</button></form></main>;
 }
+const formatCount=value=>Number(value).toLocaleString('ko-KR');
+
+function DashboardTraffic({pageViews,newLeadsToday}) {
+  const today=pageViews.at(-1);
+  const total=pageViews.reduce((sum,point)=>sum+(point.views??0),0);
+  const max=Math.max(1,...pageViews.map(point=>point.views??0));
+  const shortDate=day=>day.slice(5).replace('-','.');
+  return <>
+    <div className="dashboard-today">
+      <section className="admin-panel">
+        <h2><Icon name="ChartNoAxesCombined" size={20}/>오늘 조회수</h2>
+        <p><strong>{formatCount(today.views??0)}</strong> 회</p>
+      </section>
+      <section className="admin-panel">
+        <h2><Icon name="ClipboardList" size={20}/>오늘 새 상담</h2>
+        <p><strong>{formatCount(newLeadsToday)}</strong> 건</p>
+        <Link to="/admin/leads?today=1">오늘 상담 보기 ›</Link>
+      </section>
+    </div>
+    <section className="admin-panel dashboard-traffic" aria-labelledby="page-views-title">
+      <div className="admin-head">
+        <div>
+          <h2 id="page-views-title">최근 30일 조회수</h2>
+          <p>{pageViews[0].day} ~ {today.day} · 한국시간 기준</p>
+        </div>
+        <strong>합계 {formatCount(total)}회</strong>
+      </div>
+      <div className="traffic-bars" aria-hidden="true">
+        {pageViews.map(point=><div className="traffic-column" key={point.day}
+          title={point.day+' · '+(point.views===null?'집계 전':formatCount(point.views)+'회')}>
+          {point.views!==null&&<span className={point.day===today.day?'traffic-today':''}
+            style={{height:point.views?100*point.views/max+'%':'2px'}}/>}
+        </div>)}
+      </div>
+      <div className="traffic-dates" aria-hidden="true">
+        {[0,7,14,21,29].map(index=><span key={index}>{shortDate(pageViews[index].day)}</span>)}
+      </div>
+      {pageViews[0].views===null&&<p className="traffic-note">조회수는 집계를 시작한 날부터 표시됩니다.</p>}
+      <details>
+        <summary>일별 조회수 보기</summary>
+        <table className="traffic-table">
+          <thead><tr><th scope="col">날짜</th><th scope="col">조회수</th></tr></thead>
+          <tbody>{[...pageViews].reverse().map(point=><tr key={point.day}>
+            <th scope="row">{point.day}</th><td>{point.views===null?'집계 전':formatCount(point.views)+'회'}</td>
+          </tr>)}</tbody>
+        </table>
+      </details>
+    </section>
+  </>;
+}
 function Dashboard() {
   const resource=useResource('/admin/dashboard'),data=resource.data;
   const count=status=>data?.leads.find(row=>row.status===status)?.count??0;
   return <><div className="admin-head"><div><h1>대시보드</h1><p>상담 접수, 공개 상품과 지원금 상태를 확인하세요.</p></div><div className="actions"><Link className="btn primary" to="/admin/phone-registration">휴대폰 등록</Link><Link className="btn" to="/admin/navigation">메뉴 관리</Link><Link className="btn" to="/admin/banners">홈 배너</Link></div></div><Status resource={resource}/>
-    {data&&<><div className="admin-metrics">{[['새 상담',count('접수완료'),'/admin/leads?status=접수완료','ClipboardList'],['상담 중',count('상담중'),'/admin/leads?status=상담중','Headset'],['상담 완료',count('상담완료'),'/admin/leads?status=상담완료','Check'],['공개 휴대폰',data.products,'/admin/products','Smartphone'],['24시간 지난 새 상담',data.overdue,'/admin/leads?status=접수완료&overdue=1','Phone'],['최근 갱신',syncLabels[data.sync?.status]??data.sync?.status??'기록 없음','/admin/sync','BadgePercent']].map(([label,value,url,icon])=><Link to={url} key={label}><span className="card-icon"><Icon name={icon} size={22}/></span><strong>{value}</strong><span>{label}</span></Link>)}</div>
+    {data&&<>{data.pageViews&&<DashboardTraffic pageViews={data.pageViews} newLeadsToday={data.newLeadsToday}/>}
+    <div className="admin-metrics">{[['접수 대기',count('접수완료'),'/admin/leads?status=접수완료','ClipboardList'],['상담 중',count('상담중'),'/admin/leads?status=상담중','Headset'],['상담 완료',count('상담완료'),'/admin/leads?status=상담완료','Check'],['공개 휴대폰',data.products,'/admin/products','Smartphone'],['24시간 지난 새 상담',data.overdue,'/admin/leads?status=접수완료&overdue=1','Phone'],['최근 갱신',syncLabels[data.sync?.status]??data.sync?.status??'기록 없음','/admin/sync','BadgePercent']].map(([label,value,url,icon])=><Link to={url} key={label}><span className="card-icon"><Icon name={icon} size={22}/></span><strong>{value}</strong><span>{label}</span></Link>)}</div>
     <div className="admin-panels"><section className="admin-panel"><h2>오늘 확인할 일</h2><p>처리 대기 상담 {count('접수완료')}건</p><Link to="/admin/leads">상담 목록 보기 ›</Link></section><section className="admin-panel"><h2>지원금 갱신</h2><p>{data.sync?.message??'지원금 갱신 기록이 없습니다.'}</p><Link to="/admin/sync">실행 기록 보기 ›</Link></section></div></>}
   </>;
 }

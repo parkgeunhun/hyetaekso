@@ -102,3 +102,32 @@
 .offer-fields label{min-width:0;font-size:.87rem}
 .offer-fields :is(input,select){min-height:40px;padding:7px 8px}
 .offer-pages{justify-content:center;margin-top:14px}
+.dashboard-today { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.dashboard-today h2 { display: flex; gap: 6px; align-items: center; }
+.dashboard-today h2 svg { flex-shrink: 0; color: #9a5c00; }
+.dashboard-today p { margin: 3px 0; }
+.dashboard-today p strong { font-size: 30px; font-variant-numeric: tabular-nums; }
+.dashboard-today a { font-size: 13px; }
+.dashboard-traffic .admin-head { align-items: baseline; margin-bottom: 12px; }
+.dashboard-traffic .admin-head h2 { margin-bottom: 0; }
+.dashboard-traffic .admin-head p, .traffic-note { font-size: 13px; }
+.traffic-bars {
+  display: grid;
+  grid-template-columns: repeat(30, minmax(0, 1fr));
+  grid-template-rows: minmax(0, 1fr);
+  gap: clamp(2px, .5vw, 7px);
+  height: 125px;
+  padding-top: 6px;
+  border-bottom: 1px solid var(--line);
+  background: repeating-linear-gradient(to top, transparent 0 calc(25% - 1px), #eef0f2 calc(25% - 1px) 25%);
+}
+.traffic-column { display: flex; align-items: end; min-width: 0; }
+.traffic-column span { width: 100%; border-radius: 3px 3px 0 0; background: #f8bd5e; }
+.traffic-column .traffic-today { background: #a96100; }
+.traffic-dates { display: flex; justify-content: space-between; margin-top: 5px; color: var(--muted); font-size: 12px; }
+.traffic-note { margin: 9px 0 0; color: var(--muted); }
+.dashboard-traffic details { margin-top: 12px; }
+.dashboard-traffic summary { cursor: pointer; font-size: 14px; font-weight: 650; }
+.traffic-table { border-collapse: collapse; width: 100%; margin-top: 8px; font-variant-numeric: tabular-nums; }
+.traffic-table :is(th, td) { border-bottom: 1px solid var(--line); text-align: left; padding: 6px; }
+.traffic-table tbody th { font-weight: normal; }

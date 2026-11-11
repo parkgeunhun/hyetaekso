@@ -11,6 +11,7 @@ import { navigation, saveNavigation } from './navigation.js';
 import { registerPhone } from './phone-registration.js';
 import { createManualLead, deleteLeads, lookupLead, submitLead, updateLead } from './leads.js';
 import { supportSyncStatus, syncSupports } from './sync.js';
+import { koreaDay, recentPageViews, recordPageView } from './page-views.js';
 
 export const json=(data,status=200,headers={})=>Response.json(data,{status,headers:{'Cache-Control':'no-store','X-Content-Type-Options':'nosniff',...headers}});
 const notFound=()=>new ApiError(404,'not_found','페이지나 데이터를 찾을 수 없습니다.');
@@ -22,11 +23,13 @@ const body=async(request,limit)=>{
   return input;
 };
 async function dashboard(db) {
+  const now=Date.now(),today=koreaDay(now);
   const leads=await db.all('SELECT status,COUNT(*) AS count FROM leads GROUP BY status');
   const [products]=await db.all("SELECT COUNT(*) AS count FROM products WHERE status='published'");
-  const [overdue]=await db.all("SELECT COUNT(*) AS count FROM leads WHERE status='접수완료' AND created_at<?",[Date.now()-86400000]);
+  const [overdue]=await db.all("SELECT COUNT(*) AS count FROM leads WHERE status='접수완료' AND created_at<?",[now-86400000]);
+  const [newLeads]=await db.all('SELECT COUNT(*) AS count FROM leads WHERE created_at>=? AND created_at<?',[today.start,today.end]);
   const [sync]=await db.all('SELECT status,message,created_at FROM sync_runs ORDER BY created_at DESC LIMIT 1');
-  return {leads,products:products.count,overdue:overdue.count,sync};
+  return {leads,products:products.count,overdue:overdue.count,sync,newLeadsToday:newLeads.count,pageViews:await recentPageViews(db,now)};
 }
 async function media(request,store,params) {
   const contentType=request.headers.get('content-type');
@@ -61,6 +64,10 @@ export async function handleApi(request,env,db) {
   try {
     if(prefix!=='api'||extra)throw notFound();
     if(method!=='GET'&&method!=='HEAD')requireOrigin(request,env);
+    if(area==='page-views'&&!action&&method==='POST') {
+      await recordPageView(db);
+      return new Response(null,{status:204,headers:{'Cache-Control':'no-store'}});
+    }
     const catalogList=area==='products'&&method==='GET'&&!action&&!id;
     const mediaRead=area==='media'&&!id&&['GET','HEAD'].includes(method)&&mediaKey.test(action??'');
     if(env.PRIVATE_PREVIEW&&area!=='admin'&&!catalogList&&!await accountSession(request,db)) {
@@ -165,6 +172,10 @@ export async function handleApi(request,env,db) {
         const clauses=[],args=[];
         if(state){clauses.push('status=?');args.push(state);}
         if(service){clauses.push('service=?');args.push(text(service,'상담 유형',60));}
+        if(searchParams.get('today')==='1') {
+          const {start,end}=koreaDay();
+          clauses.push('created_at>=? AND created_at<?');args.push(start,end);
+        }
         if(searchParams.get('overdue')==='1') {clauses.push('created_at<?');args.push(Date.now()-86400000);}
         if(query){clauses.push('(receipt LIKE ? OR name LIKE ? OR phone LIKE ?)');args.push(...Array(3).fill('%'+query+'%'));}
         const where=clauses.length?' WHERE '+clauses.join(' AND '):'';

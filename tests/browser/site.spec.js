@@ -198,6 +198,47 @@ test('administrator reads and saves multiple price conditions directly in the li
   await expect(kt.getByLabel('공개 조회 매핑',{exact:true})).toHaveValue('verified-test-model');
 });
 
+test('dashboard shows public page views and todays new consultations',async({page})=>{
+  await page.goto('/admin');
+  await page.getByLabel('아이디').fill('browser-admin');
+  await page.getByLabel('비밀번호').fill(process.env.BROWSER_TEST_PASSWORD);
+  await page.getByRole('button',{name:'로그인',exact:true}).click();
+  await expect(page.getByRole('heading',{name:'최근 30일 조회수',exact:true})).toBeVisible();
+  const before=await (await page.request.get('/api/admin/dashboard')).json();
+  const track=()=>page.waitForResponse(response=>new URL(response.url()).pathname==='/api/page-views'&&response.request().method()==='POST');
+  const homeView=track();
+  await page.goto('/');
+  expect((await homeView).status()).toBe(204);
+  const serviceView=track();
+  await page.getByRole('banner').getByRole('link',{name:'보험',exact:true}).click();
+  expect((await serviceView).status()).toBe(204);
+  const response=await page.request.post('/api/admin/leads',{
+    headers:{Origin:new URL(page.url()).origin},
+    data:{requestKey:crypto.randomUUID(),name:'오늘 접수 통계 검증',phone:'01000000000',service:'렌탈',status:'상담중'}
+  });
+  expect(response.status()).toBe(201);
+  const lead=await response.json();
+  try {
+    await page.goto('/admin');
+    const todayViews=page.getByRole('heading',{name:'오늘 조회수',exact:true}).locator('..');
+    const todayLeads=page.getByRole('heading',{name:'오늘 새 상담',exact:true}).locator('..');
+    const views=(before.pageViews.at(-1).views??0)+2;
+    await expect(todayViews.locator('strong')).toHaveText(String(views));
+    await expect(todayLeads.locator('strong')).toHaveText(String(Number(before.newLeadsToday)+1));
+    await page.getByText('일별 조회수 보기',{exact:true}).click();
+    const table=page.getByRole('table');
+    await expect(table.locator('tbody tr')).toHaveCount(30);
+    await expect(table.locator('tbody tr').first()).toContainText(views+'회');
+    await page.setViewportSize({width:390,height:844});
+    expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+    await todayLeads.getByRole('link',{name:/오늘 상담 보기/}).click();
+    await expect(page).toHaveURL(/today=1$/);
+    await expect(page.getByText(lead.receipt,{exact:true})).toBeVisible();
+  } finally {
+    expect((await page.request.delete('/api/admin/leads/'+lead.id,{headers:{Origin:new URL(page.url()).origin}})).status()).toBe(200);
+  }
+});
+
 test('administrator can sign in, change the company, and sign out',async({page})=>{
   await page.goto('/admin/contact');
   await page.getByLabel('아이디').fill('browser-admin');
