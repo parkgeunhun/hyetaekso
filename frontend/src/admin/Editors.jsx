@@ -26,7 +26,14 @@ function ReferenceField({label,entity,value,update,refs}) {
     return <option key={row.id} value={row.id}>{offerLabel||[related,recordTitle(row)].filter(Boolean).join(' · ')}</option>;
   })}</select></label>;
 }
-export function EditorFields({fields,form,setForm,refs={},mediaCategory='other'}) {
+const retentionHint=<>
+  개인정보 보호법과 개인정보 처리방침에 맞게 보관 일수를 설정해 주세요.
+  보유 기간이 끝나거나 상담 목적을 달성해 불필요해진 개인정보는 지체 없이 파기해야 합니다.
+  다른 법령에 따라 보존해야 하는 정보는 분리하여 보관·관리하세요.{' '}
+  <a href="https://www.law.go.kr/LSW/lsLinkCommonInfo.do?chrClsCd=010202&lsJoLnkSeq=1029335641" target="_blank" rel="noreferrer">개인정보 보호법 제21조</a>
+</>;
+
+export function EditorFields({fields,form,setForm,refs={},mediaCategory='other',hints={}}) {
   return fields.map(([key,label,type])=>{
     const value=form[key],update=value=>setForm(prior=>({...prior,[key]:value}));
     if(type==='check')return <label key={key} className="checkbox"><input type="checkbox" checked={Boolean(value)} onChange={e=>update(+e.target.checked)}/>{label}</label>;
@@ -39,7 +46,9 @@ export function EditorFields({fields,form,setForm,refs={},mediaCategory='other'}
       const local=value?new Date(Number(value)-new Date(Number(value)).getTimezoneOffset()*60000).toISOString().slice(0,16):'';
       return <label key={key}>{label}<input type="datetime-local" required value={local} onChange={e=>update(e.target.value?new Date(e.target.value).getTime():0)}/></label>;
     }
-    return <label key={key}>{label}<input type={type==='number'?'number':'text'} value={value??''} min={type==='number'?0:undefined} onChange={e=>update(e.target.value)}/></label>;
+    const hint=hints[key],hintId=hint?'setting-hint-'+key:undefined;
+    const input=<label key={key}>{label}<input type={type==='number'?'number':'text'} value={value??''} min={type==='number'?0:undefined} aria-describedby={hintId} onChange={e=>update(e.target.value)}/></label>;
+    return hint?<div key={key}>{input}<small id={hintId}>{hint}</small></div>:input;
   });
 }
 export function blankFields(fields) {return Object.fromEntries(fields.map(([key,,type])=>[key,Array.isArray(type)?type[0]:type==='check'||type==='number'?0:type==='multiple'?[]:'']));}
@@ -104,7 +113,7 @@ export function SiteSettings({only,title,subsection,onChanged}) {
     }
     catch(error){setResult({message:error.message,error:true});}finally{setBusy(false);}
   }
-  return <><Heading>{title}</Heading><Status resource={resource}/>{form&&<form className="admin-panel form-stack settings-grid" onSubmit={save}><EditorFields fields={fields} form={form} setForm={setForm}/>{result&&<p role={result.error?'alert':'status'} className={'message '+(result.error?'error':'')}>{result.message}</p>}<button className="btn primary" disabled={busy}>설정 저장</button></form>}</>;
+  return <><Heading>{title}</Heading><Status resource={resource}/>{form&&<form className="admin-panel form-stack settings-grid" onSubmit={save}><EditorFields fields={fields} form={form} setForm={setForm} hints={{retention_days:retentionHint}}/>{result&&<p role={result.error?'alert':'status'} className={'message '+(result.error?'error':'')}>{result.message}</p>}<button className="btn primary" disabled={busy}>설정 저장</button></form>}</>;
 }
 function toBase64(file) {
   return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result).split(',')[1]);reader.onerror=()=>reject(new Error('파일을 읽지 못했습니다.'));reader.readAsDataURL(file);});

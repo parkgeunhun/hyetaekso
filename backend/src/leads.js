@@ -1,4 +1,4 @@
-import { token, text, choice, money, invalid, ApiError, rateLimit } from './security.js';
+import { digest, token, text, choice, money, invalid, ApiError, rateLimit } from './security.js';
 import { quote, product } from './catalog.js';
 import { settings, statuses } from './records.js';
 
@@ -15,6 +15,19 @@ function birthDate(value) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(birth)||!Number.isFinite(+date)||date.toISOString().slice(0,10)!==birth||birth>new Date(Date.now()+32400000).toISOString().slice(0,10)) throw invalid('생년월일을 확인해 주세요.');
   return birth;
 }
+function leadRequestKey(value) {
+  const key=text(value,'요청 번호',64);
+  if (!/^[a-z0-9-]{32,64}$/i.test(key)) throw invalid('요청 번호를 확인해 주세요.');
+  return key;
+}
+async function insertLead(db,{requestKey,service,name,phone,birth='',details,status='접수완료',snapshot={},consent,createdAt}) {
+  const id=crypto.randomUUID(),receipt='HT-'+token().slice(0,16).toUpperCase();
+  await db.run(
+    'INSERT INTO leads(id,receipt,request_key,service,name,phone,birth,details,status,notes,quote,consent,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)',
+    [id,receipt,requestKey,service,name,phone,birth,details,status,'',JSON.stringify(snapshot),JSON.stringify(consent),createdAt]
+  );
+  return {id,receipt};
+}
 export async function submitLead(db,request,input) {
   await rateLimit(db,request,'lead',12,3600000);
   const config=await settings(db);
@@ -25,8 +38,7 @@ export async function submitLead(db,request,input) {
   const birth=birthDate(input.birth??'');
   if (service==='휴대폰'&&!birth) throw invalid('생년월일을 입력해 주세요.');
   if (input.consent!==true) throw invalid('개인정보 수집·이용 동의를 확인해 주세요.');
-  const requestKey=text(input.requestKey,'요청 번호',64);
-  if (!/^[a-z0-9-]{32,64}$/i.test(requestKey)) throw invalid('요청 번호를 확인해 주세요.');
+  const requestKey=leadRequestKey(input.requestKey);
   const [previous]=await db.all('SELECT receipt,phone FROM leads WHERE request_key=?',[requestKey]);
   if (previous) {
     if(previous.phone!==phone) throw new ApiError(409,'request_conflict','새로고침 후 다시 시도해 주세요.');
@@ -69,18 +81,43 @@ export async function submitLead(db,request,input) {
     ];
     snapshot.summary=parts.filter(([,value])=>value).map(([label,value])=>label+': '+value).join('\n');
   }
-  const id=crypto.randomUUID(),receipt='HT-'+token().slice(0,16).toUpperCase();
   const details=text(input.details??'','상담 내용',3000,false);
-  const consent=JSON.stringify({text:config.consent,privacy:config.privacy,agreedAt:Date.now()});
+  const createdAt=Date.now();
+  const consent={text:config.consent,privacy:config.privacy,agreedAt:createdAt};
   try {
-    await db.run('INSERT INTO leads(id,receipt,request_key,service,name,phone,birth,details,status,notes,quote,consent,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)',
-      [id,receipt,requestKey,service,name,phone,birth,details,'접수완료','',JSON.stringify(snapshot),consent,Date.now()]);
+    const {receipt}=await insertLead(db,{requestKey,service,name,phone,birth,details,snapshot,consent,createdAt});
+    return {receipt,message:config.success_text};
   } catch(error) {
     const [existing]=await db.all('SELECT receipt,phone FROM leads WHERE request_key=?',[requestKey]);
     if (existing?.phone===phone) return {receipt:existing.receipt,message:config.success_text};
     throw error;
   }
-  return {receipt,message:config.success_text};
+}
+export async function createManualLead(db,input,username) {
+  const service=choice(input.service,services,'상담 유형');
+  const name=text(input.name,'이름',80);
+  const phone=phoneNumber(input.phone);
+  const details=text(input.details??'','상담 내용',3000,false);
+  const status=choice(input.status??'접수완료',statuses,'상담 상태');
+  const requestKey=digest('manual-lead:'+username+':'+leadRequestKey(input.requestKey));
+  const createdAt=Date.now();
+  const consent={source:'manual',registeredBy:username,registeredAt:createdAt};
+  try {
+    return await insertLead(db,{requestKey,service,name,phone,details,status,consent,createdAt});
+  } catch(error) {
+    const [prior]=await db.all('SELECT id,receipt,service,name,phone,details FROM leads WHERE request_key=?',[requestKey]);
+    if (!prior) throw error;
+    if (prior.service!==service||prior.name!==name||prior.phone!==phone||prior.details!==details) {
+      throw new ApiError(409,'request_conflict','이 등록 요청은 이미 저장되었습니다. 상담 목록에서 확인해 주세요.');
+    }
+    return {id:prior.id,receipt:prior.receipt};
+  }
+}
+export async function deleteLeads(db,ids) {
+  if(!Array.isArray(ids)||!ids.length||ids.length>50) throw invalid('한 번에 상담 1~50건을 선택해 주세요.');
+  const keys=[...new Set(ids.map(id=>text(id,'상담 관리 번호',64)))];
+  const result=await db.run('DELETE FROM leads WHERE id IN ('+keys.map(()=>'?').join(',')+')',keys);
+  return {deleted:result.affectedRows??result.changes};
 }
 export async function lookupLead(db,request,input) {
   await rateLimit(db,request,'lookup',10,900000);

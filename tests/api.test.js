@@ -18,6 +18,8 @@ async function scenario(db) {
   };
   assert.equal((await request('/admin/products')).status,401);
   assert.equal((await request('/admin/media')).status,401);
+  assert.equal((await request('/admin/leads','POST',{})).status,401);
+  assert.equal((await request('/admin/leads','DELETE',{ids:[crypto.randomUUID()]})).status,401);
   const user='test-'+crypto.randomUUID().slice(0,8),password=crypto.randomUUID();
   await db.run('INSERT INTO accounts(id,username,password_hash) VALUES(?,?,?)',[crypto.randomUUID(),user,await passwordHash(password)]);
   assert.equal((await request('/admin/login','POST',{username:user,password},'https://wrong.test')).status,403);
@@ -29,6 +31,25 @@ async function scenario(db) {
   const cookie=login.response.headers.get('set-cookie');
   assert.match(cookie,/HttpOnly/);assert.match(cookie,/SameSite=Strict/);session=cookie.split(';')[0];
   assert.equal((await request('/admin/session')).data.username,user);
+  const manualLead={requestKey:crypto.randomUUID(),service:'렌탈',name:'수동 검증 고객',phone:'010-0000-0000',details:'전화 상담',status:'상담중'};
+  assert.equal((await request('/admin/leads','POST',{...manualLead,phone:'123'})).status,400);
+  const manualCreated=await request('/admin/leads','POST',manualLead);
+  assert.equal(manualCreated.status,201);
+  assert.match(manualCreated.data.receipt,/^HT-/);
+  assert.deepEqual((await request('/admin/leads','POST',manualLead)).data,manualCreated.data);
+  assert.equal((await request('/admin/leads','POST',{...manualLead,details:'다른 내용'})).status,409);
+  const createdDetail=(await request('/admin/leads/'+manualCreated.data.id)).data;
+  assert.equal(createdDetail.status,'상담중');
+  assert.equal(createdDetail.phone,'01000000000');
+  assert.deepEqual(JSON.parse(createdDetail.consent),{source:'manual',registeredBy:user,registeredAt:Number(createdDetail.created_at)});
+  const secondLead=await request('/admin/leads','POST',{...manualLead,requestKey:crypto.randomUUID(),service:'휴대폰'});
+  assert.equal(secondLead.status,201);
+  const leadIds=[manualCreated.data.id,secondLead.data.id];
+  assert.equal((await request('/admin/leads','DELETE',{ids:[]})).status,400);
+  assert.equal((await request('/admin/leads','DELETE',{ids:leadIds},'https://wrong.test')).status,403);
+  assert.deepEqual((await request('/admin/leads','DELETE',{ids:[...leadIds,leadIds[0]]})).data,{deleted:2});
+  for(const id of leadIds)assert.equal((await request('/admin/leads/'+id)).status,404);
+  assert.deepEqual((await request('/admin/leads','DELETE',{ids:leadIds})).data,{deleted:0});
   const mediaUpload=await handleApi(new Request(origin+'/api/admin/media?name=catalog.jpg&category=car',{
     method:'POST',headers:{origin,cookie:session,'content-type':'image/jpeg'},body:new Uint8Array([255,216,255,217])
   }),env,db);

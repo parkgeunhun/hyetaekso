@@ -51,7 +51,7 @@ test('insurance shares the public header and the dark mode choice survives a rel
   await expect(header).toHaveCSS('background-color','rgb(255, 255, 255)');
 });
 
-test('consultations can be looked up by receipt and filtered in a single admin list',async({page})=>{
+test('consultations can be looked up, filtered, manually registered and selectively deleted',async({page})=>{
   await page.goto('/consult?service=렌탈');
   await page.getByLabel('이름',{exact:true}).fill('검증 고객');
   await page.getByLabel('휴대폰 번호',{exact:true}).fill('01000000000');
@@ -92,7 +92,40 @@ test('consultations can be looked up by receipt and filtered in a single admin l
   await expect(consultations).toHaveAttribute('aria-current','page');
   await page.getByRole('button',{name:'초기화',exact:true}).click();
   await expect(page.getByText(otherReceipt,{exact:true})).toBeVisible();
-  await expect(page.getByRole('link',{name:'상담 접수 설정',exact:true})).toHaveAttribute('href','/admin/intake-settings');
+  await page.getByRole('button',{name:'상담 수동 등록',exact:true}).click();
+  const dialog=page.getByRole('dialog');
+  await dialog.getByRole('combobox',{name:'상담 유형',exact:true}).selectOption('휴대폰');
+  await dialog.getByLabel('이름',{exact:true}).fill('수동 검증 고객');
+  await dialog.getByLabel('휴대폰 번호',{exact:true}).fill('01000000000');
+  await dialog.getByLabel('상담 내용',{exact:true}).fill('방문 접수');
+  await dialog.getByRole('button',{name:'등록',exact:true}).click();
+  const manualRow=page.getByRole('row',{name:/수동 검증 고객/});
+  await expect(manualRow).toBeVisible();
+  await manualRow.getByRole('button',{name:'보기',exact:true}).click();
+  await expect(dialog.getByText('수동 등록 · browser-admin',{exact:true})).toBeVisible();
+  await dialog.getByRole('button',{name:'닫기',exact:true}).click();
+
+  const all=page.getByRole('checkbox',{name:'이 페이지 상담 전체 선택',exact:true});
+  const online=page.getByRole('checkbox',{name:receipt+' 선택',exact:true});
+  await all.check();
+  await expect(online).toBeChecked();
+  await all.uncheck();
+  await manualRow.getByRole('checkbox').check();
+  await online.check();
+  const remove=page.getByRole('button',{name:'선택 삭제 (2)',exact:true});
+  await remove.click();
+  await dialog.getByRole('button',{name:'취소',exact:true}).click();
+  await expect(manualRow).toBeVisible();
+  await remove.click();
+  await dialog.getByRole('button',{name:'삭제 확인',exact:true}).click();
+  await expect(page.getByText('2건의 상담을 삭제했습니다.',{exact:true})).toBeVisible();
+  await expect(manualRow).toHaveCount(0);
+  await expect(page.getByText(receipt,{exact:true})).toHaveCount(0);
+  await expect(page.getByText(otherReceipt,{exact:true})).toBeVisible();
+
+  await page.getByRole('link',{name:'상담 접수 설정',exact:true}).click();
+  await expect(page.getByRole('spinbutton',{name:'상담 보관 일수',exact:true})).toHaveAccessibleDescription(/개인정보 보호법/);
+  await expect(page.getByRole('link',{name:'개인정보 보호법 제21조',exact:true})).toHaveAttribute('href',/^https:\/\/www\.law\.go\.kr\//);
 });
 
 test('direct links render catalog and gated administrator sign-in',async({page})=>{

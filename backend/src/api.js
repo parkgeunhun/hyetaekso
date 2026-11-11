@@ -9,7 +9,7 @@ import { listAdminOffers,saveOfferChanges } from './offer-editor.js';
 import { appearance, saveAppearance, resetAppearance } from './appearance.js';
 import { navigation, saveNavigation } from './navigation.js';
 import { registerPhone } from './phone-registration.js';
-import { lookupLead, submitLead, updateLead } from './leads.js';
+import { createManualLead, deleteLeads, lookupLead, submitLead, updateLead } from './leads.js';
 import { supportSyncStatus, syncSupports } from './sync.js';
 
 export const json=(data,status=200,headers={})=>Response.json(data,{status,headers:{'Cache-Control':'no-store','X-Content-Type-Options':'nosniff',...headers}});
@@ -154,6 +154,8 @@ export async function handleApi(request,env,db) {
       if(method==='POST'&&!id)return json(await syncSupports(db,env));
     }
     if(action==='leads') {
+      if(method==='POST'&&!id)return json(await createManualLead(db,await body(request,20000),session.username),201);
+      if(method==='DELETE'&&!id)return json(await deleteLeads(db,(await body(request,10000)).ids));
       if(method==='GET'&&id) {
         const [row]=await db.all('SELECT * FROM leads WHERE id=?',[id]);if(!row)throw notFound();return json(row);
       }

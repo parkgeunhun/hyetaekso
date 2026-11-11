@@ -1,17 +1,18 @@
 import { useEffect,useState } from 'react';
-import { Link,useParams,useSearchParams } from 'react-router-dom';
+import { Link,useParams } from 'react-router-dom';
 import { api } from '../services/api.js';
 import { useResource } from '../hooks/data.js';
 import { Logo } from '../layouts/SiteLayout.jsx';
-import { Icon,Status,Modal } from '../components/common.jsx';
-import { entities,leadStates } from './fields.js';
+import { Icon,Status } from '../components/common.jsx';
+import { entities } from './fields.js';
+import Leads from './Leads.jsx';
 import { Records,SiteSettings,Excel } from './Editors.jsx';
 import AppearanceEditor from './AppearanceEditor.jsx';
 import ImageLibrary from './ImageLibrary.jsx';
 import NavigationEditor from './NavigationEditor.jsx';
 import PhoneRegistration from './PhoneRegistration.jsx';
 import OfferEditor from './OfferEditor.jsx';
-import { boardTitles, menu, serviceTypes } from '../pages/content.js';
+import { boardTitles, menu } from '../pages/content.js';
 import { mediaCategories } from '../../../shared/media-library.js';
 import './admin.css';
 
@@ -88,38 +89,6 @@ function Dashboard() {
   return <><div className="admin-head"><div><h1>대시보드</h1><p>상담 접수, 공개 상품과 지원금 상태를 확인하세요.</p></div><div className="actions"><Link className="btn primary" to="/admin/phone-registration">휴대폰 등록</Link><Link className="btn" to="/admin/navigation">메뉴 관리</Link><Link className="btn" to="/admin/banners">홈 배너</Link></div></div><Status resource={resource}/>
     {data&&<><div className="admin-metrics">{[['새 상담',count('접수완료'),'/admin/leads?status=접수완료','ClipboardList'],['상담 중',count('상담중'),'/admin/leads?status=상담중','Headset'],['상담 완료',count('상담완료'),'/admin/leads?status=상담완료','Check'],['공개 휴대폰',data.products,'/admin/products','Smartphone'],['24시간 지난 새 상담',data.overdue,'/admin/leads?status=접수완료&overdue=1','Phone'],['최근 갱신',syncLabels[data.sync?.status]??data.sync?.status??'기록 없음','/admin/sync','BadgePercent']].map(([label,value,url,icon])=><Link to={url} key={label}><span className="card-icon"><Icon name={icon} size={22}/></span><strong>{value}</strong><span>{label}</span></Link>)}</div>
     <div className="admin-panels"><section className="admin-panel"><h2>오늘 확인할 일</h2><p>처리 대기 상담 {count('접수완료')}건</p><Link to="/admin/leads">상담 목록 보기 ›</Link></section><section className="admin-panel"><h2>지원금 갱신</h2><p>{data.sync?.message??'지원금 갱신 기록이 없습니다.'}</p><Link to="/admin/sync">실행 기록 보기 ›</Link></section></div></>}
-  </>;
-}
-function Leads() {
-  const [params,setParams]=useSearchParams(),[id,setId]=useState('');
-  const appliedQuery=params.get('q')||'';
-  const [query,setQuery]=useState(appliedQuery);
-  const resource=useResource('/admin/leads?'+params.toString()),detail=useResource(id?'/admin/leads/'+id:null);
-  const [status,setStatus]=useState(''),[notes,setNotes]=useState(''),[message,setMessage]=useState(''),[busy,setBusy]=useState(false);
-  useEffect(()=>setQuery(appliedQuery),[appliedQuery]);
-  useEffect(()=>{if(detail.data?.id===id&&detail.data){setStatus(detail.data.status);setNotes(detail.data.notes);setMessage('');}},[detail.data,id]);
-  function filter(values) {
-    const next={...Object.fromEntries(params),page:'',...values};
-    setParams(Object.fromEntries(Object.entries(next).filter(([,value])=>value)));
-  }
-  async function save(event) {
-    event.preventDefault();setBusy(true);setMessage('');
-    try {await api('/admin/leads/'+id,{method:'PATCH',body:{status,notes}});resource.retry();setMessage('상담 상태를 저장했습니다.');}catch(error){setMessage(error.message);}finally{setBusy(false);}
-  }
-  return <><div className="admin-head"><div><h1>상담 접수</h1><p>모든 상담을 한곳에서 확인하고 유형이나 상태별로 조회할 수 있습니다.</p></div><Link className="btn" to="/admin/intake-settings">상담 접수 설정</Link></div>
-    <section className="admin-panel"><form className="filters" onSubmit={e=>{e.preventDefault();filter({q:query.trim()});}}>
-      <label>상담 유형<select value={params.get('service')||''} onChange={e=>filter({service:e.target.value})}><option value="">전체 유형</option>{serviceTypes.map(service=><option key={service}>{service}</option>)}</select></label>
-      <label>상태<select value={params.get('status')||''} onChange={e=>filter({status:e.target.value})}><option value="">전체 상태</option>{leadStates.map(state=><option key={state}>{state}</option>)}</select></label>
-      <label>신청번호·이름·전화<input type="search" value={query} onChange={e=>setQuery(e.target.value)}/></label>
-      <button className="btn">검색</button>
-      <button className="btn" type="button" onClick={()=>{setQuery('');setParams({});}}>초기화</button>
-    </form>
-    {params.get('overdue')==='1'&&<p className="message">접수 후 24시간이 지난 상담만 표시합니다.</p>}
-    <Status resource={resource}/><div className="table-scroll"><table><thead><tr><th>신청번호</th><th>이름</th><th>유형</th><th>상태</th><th>접수 시간</th><th>상세</th></tr></thead><tbody>{resource.data?.items.map(item=><tr key={item.id}><td>{item.receipt}</td><td>{item.name}</td><td>{item.service}</td><td>{item.status}</td><td>{time(item.created_at)}</td><td><button className="btn" onClick={()=>setId(item.id)}>보기</button></td></tr>)}</tbody></table></div>{resource.data&&!resource.data.items.length&&<p className="message">해당 상담이 없습니다.</p>}
-    <div className="actions"><button className="btn" disabled={Number(params.get('page')||0)<1} onClick={()=>filter({page:String(Number(params.get('page')||0)-1)})}>이전</button><button className="btn" disabled={!resource.data?.more} onClick={()=>filter({page:String(Number(params.get('page')||0)+1)})}>다음</button></div></section>
-    {id&&<Modal title="상담 상세" onClose={()=>{if(!busy)setId('');}}><Status resource={detail}/>{detail.data?.id===id&&<form className="form-stack" onSubmit={save}><p>{detail.data.receipt} · {detail.data.service}</p><p>{detail.data.name} · {detail.data.phone} · {detail.data.birth}</p><p className="preserve">{detail.data.details}</p>
-    <details><summary>신청 당시 견적·동의 기록</summary><pre>{JSON.stringify({quote:JSON.parse(detail.data.quote),consent:JSON.parse(detail.data.consent)},null,2)}</pre></details>
-    <label>진행 상태<select value={status} onChange={e=>setStatus(e.target.value)}>{leadStates.map(state=><option key={state}>{state}</option>)}</select></label><label>관리 메모<textarea rows="4" value={notes} onChange={e=>setNotes(e.target.value)}/></label><button className="btn primary" disabled={busy}>저장</button>{message&&<p role="status">{message}</p>}</form>}</Modal>}
   </>;
 }
 function Sync() {
