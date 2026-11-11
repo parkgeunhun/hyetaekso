@@ -13,6 +13,6 @@ export function ConsultationLink({service,detail,fromPhone=false,children,...pro
   return <Link {...props} to={path} onClick={event=>{
     if(!context||event.defaultPrevented||event.button!==0||event.metaKey||event.altKey||event.ctrlKey||event.shiftKey)return;
     event.preventDefault();
-    context.open({initialService:service,detail,fromPhone});
+    context.open({initialService:service,detail,fromPhone},event.currentTarget);
   }}>{children}</Link>;
 }

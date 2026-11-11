@@ -43,6 +43,8 @@ test('insurance shares the public header and the dark mode choice survives a rel
   await consult.click();
   await expect(page.getByRole('textbox',{name:'이름',exact:true})).toHaveCSS('background-color','rgb(32, 45, 63)');
   await expect(page.getByRole('dialog',{name:'상담 신청',exact:true}).getByRole('combobox',{name:'상담 유형',exact:true})).toHaveValue('보험');
+  await page.keyboard.press('Escape');
+  await expect(consult).toBeFocused();
   await page.reload();
   await expect(toggle).toHaveAttribute('aria-pressed','true');
   await expect(header).toHaveCSS('background-color','rgb(24, 35, 50)');
