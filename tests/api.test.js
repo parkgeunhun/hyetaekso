@@ -4,6 +4,7 @@ import ExcelJS from 'exceljs';
 import { sqlite,applySchema } from '../scripts/local-db.mjs';
 import { connectMysql } from '../backend/src/db.js';
 import { handleApi } from '../backend/src/api.js';
+import { databaseMedia } from '../backend/src/media-store.js';
 import { passwordHash } from '../backend/src/security.js';
 import { saveRecord } from '../backend/src/records.js';
 
@@ -207,6 +208,35 @@ async function scenario(db) {
   assert.equal((await request('/admin/leads')).status,401);
 }
 test('SQLite API workflow and workbook',async()=>{const db=await sqlite(':memory:');try{await scenario(db);}finally{db.close();}});
+test('private preview exposes the published catalog and its covers to visitors',async()=>{
+  const db=await sqlite(':memory:');
+  const previewOrigin='https://preview.example';
+  const request=(path,method='GET')=>handleApi(new Request(previewOrigin+path,{method}),{APP_ORIGIN:previewOrigin,PRIVATE_PREVIEW:true},db);
+  try {
+    const manufacturer=await saveRecord(db,'manufacturers',{name:'검증 제조사'});
+    const bytes=Buffer.from([255,216,255,217]);
+    const publicKey=crypto.randomUUID()+'.jpg',privateKey=crypto.randomUUID()+'.jpg';
+    for(const key of [publicKey,privateKey]){
+      await databaseMedia(db).put(key,bytes,{httpMetadata:{contentType:'image/jpeg'}});
+    }
+    const cover='/api/media/'+publicKey,privateCover='/api/media/'+privateKey;
+    const product=await saveRecord(db,'products',{manufacturer_id:manufacturer.id,name:'공개 모델',status:'published',image:previewOrigin+cover+'?v=1'});
+    await saveRecord(db,'products',{manufacturer_id:manufacturer.id,name:'비공개 모델',status:'draft',image:privateCover});
+    const response=await request('/api/products');
+    assert.equal(response.status,200);
+    assert.deepEqual((await response.json()).items.map(item=>item.id),[product.id]);
+    const image=await request(cover+'?v=1');
+    assert.equal(image.status,200);
+    assert.equal(image.headers.get('cache-control'),'private, no-store');
+    assert.deepEqual(Buffer.from(await image.arrayBuffer()),bytes);
+    assert.equal((await request(cover,'HEAD')).status,200);
+    for(const path of [privateCover,'/api/products/'+product.id,'/api/site','/api/admin/leads']){
+      assert.equal((await request(path)).status,401);
+    }
+    await saveRecord(db,'products',{...product,status:'draft'},product.id);
+    assert.equal((await request(cover)).status,401);
+  } finally {db.close();}
+});
 test('MySQL-compatible database API workflow',{skip:!process.env.MYSQL_TEST_URL},async()=>{
   const db=await connectMysql(process.env.MYSQL_TEST_URL);
   try {await applySchema(db);await scenario(db);}finally{await db.close();}

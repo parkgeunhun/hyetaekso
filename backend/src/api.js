@@ -3,7 +3,7 @@ import { databaseMedia, mediaKey, mediaLimit, mediaTypes } from './media-store.j
 import { deleteMedia, listMedia, mediaDetails, updateMedia } from './media-library.js';
 import { listBanners } from './banner-text.js';
 import { ApiError, invalid, digest, token, matchesPassword, cookie, accountSession, requireOrigin, rateLimit, readJson, text, choice } from './security.js';
-import { listProducts, product, quote } from './catalog.js';
+import { isPublishedProductCover, listProducts, product, quote } from './catalog.js';
 import { definitions, saveRecord, settings, saveSettings } from './records.js';
 import { listAdminOffers,saveOfferChanges } from './offer-editor.js';
 import { appearance, saveAppearance, resetAppearance } from './appearance.js';
@@ -56,15 +56,19 @@ async function media(request,store,params) {
   return json({url:'/api/media/'+key},201);
 }
 export async function handleApi(request,env,db) {
-  const {pathname,searchParams}=new URL(request.url),method=request.method;
+  const {origin,pathname,searchParams}=new URL(request.url),method=request.method;
   const [,prefix,area,action,id,extra]=pathname.split('/');
   try {
     if(prefix!=='api'||extra)throw notFound();
     if(method!=='GET'&&method!=='HEAD')requireOrigin(request,env);
-    if(env.PRIVATE_PREVIEW&&area!=='admin'&&!await accountSession(request,db)) {
-      throw new ApiError(401,'login_required','미리보기 데이터를 보려면 관리자 로그인이 필요합니다.');
+    const catalogList=area==='products'&&method==='GET'&&!action&&!id;
+    const mediaRead=area==='media'&&!id&&['GET','HEAD'].includes(method)&&mediaKey.test(action??'');
+    if(env.PRIVATE_PREVIEW&&area!=='admin'&&!catalogList&&!await accountSession(request,db)) {
+      if(!mediaRead||!await isPublishedProductCover(db,action,origin)) {
+        throw new ApiError(401,'login_required','미리보기 데이터를 보려면 관리자 로그인이 필요합니다.');
+      }
     }
-    if(area==='media'&&['GET','HEAD'].includes(method)&&mediaKey.test(action??'')) {
+    if(mediaRead) {
       const response=await serveMedia(databaseMedia(db,env.MEDIA),action,request);
       if(!response)throw notFound();
       if(env.PRIVATE_PREVIEW)response.headers.set('Cache-Control','private, no-store');

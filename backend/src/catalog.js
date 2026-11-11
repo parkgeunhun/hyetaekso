@@ -1,5 +1,6 @@
 import { estimate } from '../../shared/quote.js';
 import { digest, ApiError, invalid, choice, money, text } from './security.js';
+import { mediaId } from './media-store.js';
 
 export const joins=['기기변경','신규가입','번호이동'];
 export const storageKey=value=>value.trim().replace(/^(\d+(?:\.\d+)?)\s*(GB|TB)$/i,(_,n,unit)=>n+unit.toUpperCase());
@@ -49,4 +50,15 @@ export async function listProducts(db) {
   return db.all(`SELECT p.id,p.name,p.image,p.sample,p.closed,p.manufacturer_id,m.name AS manufacturer,
     (SELECT MIN(price) FROM capacities WHERE product_id=p.id) AS price
     FROM products p JOIN manufacturers m ON m.id=p.manufacturer_id WHERE p.status='published' ORDER BY p.sort_order,p.name LIMIT 1000`);
+}
+export async function isPublishedProductCover(db,key,origin) {
+  const path='/api/media/'+key;
+  const matches=await db.all(
+    "SELECT image FROM products WHERE status='published' AND (image LIKE ? OR image LIKE ?)",
+    [path+'%',origin+path+'%']
+  );
+  return matches.some(({image})=>{
+    const url=new URL(image,origin);
+    return url.origin===origin&&mediaId(url.href)===key;
+  });
 }
