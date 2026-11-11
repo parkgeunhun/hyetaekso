@@ -22,6 +22,20 @@ test('service pages and mobile menu work without horizontal overflow',async({pag
   expect(errors).toEqual([]);
 });
 
+test('moving and home care consultation buttons line up on mobile',async({page})=>{
+  await page.setViewportSize({width:390,height:844});
+  await page.goto('/moving');
+  const [moving,homeCare]=['이사 서비스','홈케어 서비스'].map(name=>page.getByRole('article')
+    .filter({has:page.getByRole('heading',{name,exact:true})}).getByRole('link',{name:'상담 신청 ›',exact:true}));
+  for(const width of [320,360,390,430,600]){
+    await page.setViewportSize({width,height:844});
+    await expect(moving).toBeVisible();
+    await expect(homeCare).toBeVisible();
+    const [left,right]=await Promise.all([moving.boundingBox(),homeCare.boundingBox()]);
+    expect(Math.abs(left.y-right.y),'button alignment at '+width+'px').toBeLessThan(1);
+  }
+});
+
 test('insurance shares the public header and the dark mode choice survives a reload',async({page})=>{
   await page.goto('/insurance');
   const header=page.getByRole('banner');

@@ -85,6 +85,11 @@ em{color:var(--accent-text);font-style:normal}
 .card-body h3{display:flex;align-items:center;gap:8px;margin:0 0 7px;font-size:19px}
 .card-body p{color:#414953;font-size:14px;margin-bottom:8px}
 .card-body .btn{width:100%;margin-top:8px}
+@media(max-width:600px){
+  .moving-service-cards .card-body{display:flex;flex:1;flex-direction:column}
+  .moving-service-cards .card-body>p:last-of-type{margin-bottom:16px}
+  .moving-service-cards .card-body>.btn{margin-top:auto}
+}
 .card-icon,.step-icon{display:inline-grid;place-items:center;flex:none;color:var(--ink);background:#fff6df;border:1px solid #ffd577;width:39px;height:39px;border-radius:50%}
 .check-line{display:flex;align-items:flex-start;gap:6px}
 .check-line svg{color:#ac6100;flex:none;margin-top:3px}

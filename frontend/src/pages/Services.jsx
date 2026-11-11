@@ -51,8 +51,9 @@ export function Home() {
 function ServiceCards({data,slug,onInsurance}) {
   const {appearance}=useSite();
   const type=serviceByPage[slug];
+  const columns=slug==='business'?6:slug==='insurance'||slug==='about'?5:slug==='telecom'?3:slug==='moving'?2:4;
   return <Section title={data.section} className={slug==='telecom'?'':'center'}>
-    <div className={'card-grid columns-'+(slug==='business'?6:slug==='insurance'||slug==='about'?5:slug==='telecom'?3:slug==='moving'?2:4)}>
+    <div className={`card-grid columns-${columns}${slug==='moving'?' moving-service-cards':''}`}>
       {data.cards.map(([defaultTitle,icon,defaultDetail,defaultSecond,link],index)=>{
         const card=appearance?.[cardSlot(slug,index)];
         const title=card?.title??defaultTitle, detail=card?.description??defaultDetail, second=card?.secondary??defaultSecond;
