@@ -12,6 +12,7 @@ import { registerPhone } from './phone-registration.js';
 import { createManualLead, deleteLeads, lookupLead, submitLead, updateLead } from './leads.js';
 import { supportSyncStatus, syncSupports } from './sync.js';
 import { koreaDay, recentPageViews, recordPageView } from './page-views.js';
+import { publicCompanyInfo } from '../../shared/company-documents.js';
 
 export const json=(data,status=200,headers={})=>Response.json(data,{status,headers:{'Cache-Control':'no-store','X-Content-Type-Options':'nosniff',...headers}});
 const notFound=()=>new ApiError(404,'not_found','페이지나 데이터를 찾을 수 없습니다.');
@@ -64,6 +65,7 @@ export async function handleApi(request,env,db) {
   try {
     if(prefix!=='api'||extra)throw notFound();
     if(method!=='GET'&&method!=='HEAD')requireOrigin(request,env);
+    if(area==='public-info'&&!action&&method==='GET')return json(publicCompanyInfo(await settings(db)));
     if(area==='page-views'&&!action&&method==='POST') {
       await recordPageView(db);
       return new Response(null,{status:204,headers:{'Cache-Control':'no-store'}});

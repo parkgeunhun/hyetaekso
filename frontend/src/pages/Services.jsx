@@ -7,6 +7,7 @@ import { useResource } from '../hooks/data.js';
 import { homeHero, homePromises, heroAppearance, heroSlot, cardSlot, serviceCardTile } from '../../../shared/site-appearance.js';
 import { menuLabel, siteMenu } from '../../../shared/navigation.js';
 import { BannerMedia, BannerTextPlane } from '../components/BannerCanvas.jsx';
+import { hasDocumentTitle, RichText } from '../components/RichText.jsx';
 import { bannerLineBreaks } from '../../../shared/banner-text.js';
 
 export function Banner() {
@@ -67,7 +68,16 @@ function MobilityBrands() {
   return <Section title="다양한 브랜드와 차량을 만나보세요" className="center"><div className="tabs" aria-label="차량 분류">{['전체','국산차','수입차','전기차','하이브리드','SUV','승합차','승용차'].map(value=><button key={value} aria-pressed={filter===value} onClick={()=>setFilter(value)}>{value}</button>)}</div><div className="brands">{brands.filter(row=>filter==='전체'||row.includes(filter)).map(([brand])=><Link key={brand} to={'/consult?service=모빌리티&detail='+encodeURIComponent(brand)}><Icon name="CarFront" size={22}/>{brand}</Link>)}</div></Section>;
 }
 function AboutCompany({settings,image}) {
-  return <><Section title="회사 소개"><div className="about-panel"><Art tile={0} src={image}/><div><h3>{settings.company||'혜택소'}</h3><p>통신, 렌탈, 이사·홈, 공간과 사업자 서비스를 연결합니다.</p><dl>{[['대표이사','representative'],['사업자등록번호','registration'],['주소','address']].filter(([,key])=>settings[key]).map(([label,key])=><div key={key}><dt>{label}</dt><dd>{settings[key]}</dd></div>)}</dl></div></div></Section><Steps title="사업 영역" items={['휴대폰·통신','인터넷·TV','생활 서비스','제휴·가맹']}/></>;
+  const info=[
+    ['상호',settings.company],['대표자',settings.representative],['사업자등록번호',settings.registration],
+    ['주소',settings.address],['고객센터',settings.phone&&<a href={'tel:'+settings.phone.replace(/[^+\d]/g,'')}><strong>{settings.phone}</strong></a>],
+    ['이메일',settings.email&&<a href={'mailto:'+settings.email}><strong>{settings.email}</strong></a>]
+  ];
+  return <><Section title={settings.about_title||'기업 소개'}><div className="about-panel"><Art tile={0} src={image}/><div>
+    <RichText text={settings.about_intro} minHeading={3}/>
+    <h3>{settings.about_info_title||'회사 정보'}</h3>
+    <dl>{info.filter(([,value])=>value).map(([label,value])=><div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>
+  </div></div></Section><Steps title="사업 영역" items={['휴대폰·통신','인터넷·TV','생활 서비스','제휴·가맹']}/></>;
 }
 export function ServicePage({slug}) {
   const {settings,appearance,navigation}=useSite(),name=menuLabel(slug,navigation);
@@ -112,6 +122,10 @@ function SupportBody() {
 }
 export function Legal({kind}) {
   const {settings}=useSite();
-  return <><Breadcrumb title={kind==='privacy'?'개인정보처리방침':'이용약관'}/><Section title={kind==='privacy'?'개인정보처리방침':'이용약관'}><p className="preserve">{settings[kind]||'등록을 준비하고 있습니다.'}</p></Section></>;
+  const title=kind==='privacy'?'개인정보처리방침':'이용약관',document=settings[kind];
+  return <><Breadcrumb title={title}/><article className="legal-document wrap">
+    {!hasDocumentTitle(document)&&<h1>{title}</h1>}
+    <RichText minHeading={1} text={document||'등록을 준비하고 있습니다.'}/>
+  </article></>;
 }
 export function Sitemap() {const {navigation}=useSite();return <Section title="사이트맵"><ul>{siteMenu(navigation).map(([path,label])=><li key={path}><Link to={'/'+path}>{label}</Link></li>)}<li><Link to="/phones">휴대폰 전체 모델</Link></li>{Object.entries(boardTitles).map(([key,title])=><li key={key}><Link to={'/board/'+key}>{title}</Link></li>)}</ul></Section>;}

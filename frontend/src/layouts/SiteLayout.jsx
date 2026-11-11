@@ -15,7 +15,9 @@ export function Logo({image}={}) {
   return <Link className="brand" to="/" aria-label="혜택소 홈"><img src={image||appearance?.logo?.image||defaultBrandImage} alt="" width="43" height="43"/><span>혜택소</span></Link>;
 }
 export default function SiteLayout() {
-  const site=useResource('/site'), config=site.data??defaultSite;
+  const site=useResource('/site');
+  const publicInfo=useResource(site.error?.status===401?'/public-info':null);
+  const config=site.data??(publicInfo.data?{...defaultSite,settings:publicInfo.data}:defaultSite);
   const location=useLocation(),[menuOpen,setMenuOpen]=useState(false);
   const [dark,setDark]=useState(false);
   const {settings,navigation}=config;

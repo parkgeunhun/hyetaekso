@@ -83,7 +83,7 @@ export async function submitLead(db,request,input) {
   }
   const details=text(input.details??'','상담 내용',3000,false);
   const createdAt=Date.now();
-  const consent={text:config.consent,privacy:config.privacy,agreedAt:createdAt};
+  const consent={text:config.consent,label:config.consent_label,privacy:config.privacy,agreedAt:createdAt};
   try {
     const {receipt}=await insertLead(db,{requestKey,service,name,phone,birth,details,snapshot,consent,createdAt});
     return {receipt,message:config.success_text};

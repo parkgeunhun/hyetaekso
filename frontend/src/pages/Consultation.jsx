@@ -4,6 +4,7 @@ import { api } from '../services/api.js';
 import { useSite } from '../layouts/SiteLayout.jsx';
 import { serviceTypes } from './content.js';
 import { Breadcrumb,Section } from '../components/common.jsx';
+import { RichText } from '../components/RichText.jsx';
 
 function Remaining({name,label}) {
   const [value,setValue]=useState('');
@@ -30,7 +31,9 @@ export function ConsultationForm({fixedService,detail='',quoteInput,onQuoteChang
     <div className="filters"><label>이름<input name="name" autoComplete="name" required maxLength="80"/></label><label>휴대폰 번호<input name="phone" type="tel" autoComplete="tel" required maxLength="20"/></label></div>
     {fixedService==='휴대폰'&&<><label>생년월일<input name="birth" type="date" autoComplete="bday" required/></label><Remaining name="penalty" label="남은 위약금"/><Remaining name="balance" label="남은 할부금"/></>}
     <label>상담 내용<textarea name="details" rows="4" maxLength="3000" defaultValue={detail}/></label>
-    <p className="consent-copy preserve">{settings.consent}</p><label className="checkbox"><input name="consent" type="checkbox" required/> 개인정보 수집·이용에 동의합니다.</label>
+    <RichText text={settings.consent} minHeading={3}/>
+    <details className="consultation-consent"><summary>개인정보 수집 동의서 보기</summary><RichText text={settings.privacy} minHeading={3}/></details>
+    <label className="checkbox"><input name="consent" type="checkbox" required/>{settings.consent_label||'개인정보 수집·이용에 동의합니다.'}</label>
     <Link to="/privacy">개인정보처리방침 확인</Link>
     {error&&<p role="alert" className="message error">{error}</p>}{error&&onQuoteChanged&&<button type="button" className="btn" onClick={onQuoteChanged}>상품 정보 다시 불러오기</button>}
     <button type="submit" className="btn primary" disabled={busy}>{busy?'접수 중…':'상담 신청하기'}</button>

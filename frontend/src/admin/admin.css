@@ -138,3 +138,9 @@
 .traffic-table { border-collapse: collapse; width: 100%; margin-top: 8px; font-variant-numeric: tabular-nums; }
 .traffic-table :is(th, td) { border-bottom: 1px solid var(--line); text-align: left; padding: 6px; }
 .traffic-table tbody th { font-weight: normal; }
+.document-editor { grid-column: 1/-1; min-width: 0; border: 1px solid var(--line); padding: 12px; border-radius: 10px; }
+.document-editor-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
+.document-editor-head h2 { margin: 0; }
+.document-editor textarea { resize: vertical; line-height: 1.65; margin-top: 8px; }
+.document-tools .btn { min-height: 34px; padding: 5px 9px; }
+.document-preview { padding: 10px 12px; background: #f6f7f9; border-radius: 8px; }

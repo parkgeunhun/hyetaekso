@@ -3,6 +3,7 @@ import { ApiError, invalid, text, money, choice, mediaUrl, pictureUrl } from './
 import { joins, storageKey, offer, supportSignature } from './catalog.js';
 import { lockMediaReferences } from './media-store.js';
 import { validateBannerLayers } from './banner-text.js';
+import { companyDocuments } from '../../shared/company-documents.js';
 
 const string=(label,max,required=true)=>value=>text(value??'',label,max,required);
 const number=(label,min,max)=>value=>money(value??0,label,min,max);
@@ -26,8 +27,8 @@ export const tables=Object.keys(definitions);
 export const statuses=['접수완료','상담중','상담완료','취소'];
 export const defaults={
   ...officialEndpoints,
-  company:'혜택소',phone:'',email:'',hours:'',address:'',registration:'',representative:'',kakao:'',
-  privacy:'',terms:'',consent:'',intake:0,retention_days:90,banner_autoplay:0,banner_interval:6,motion:'subtle',
+  ...companyDocuments,
+  hours:'',kakao:'',intake:0,retention_days:90,banner_autoplay:0,banner_interval:6,motion:'subtle',
   join_change:'현재 통신사와 번호를 유지하고 기기만 변경합니다.',
   join_new:'새 번호로 회선을 개통합니다.',
   join_port:'번호를 유지하면서 통신사를 변경합니다.',
@@ -52,7 +53,7 @@ export async function saveSettings(db,input) {
     else if (typeof value==='number') next[key]=flag(input[key]);
     else next[key]=text(input[key],key,50000,key==='company');
   }
-  if (next.intake&&(!next.privacy||!next.consent)) throw invalid('개인정보 안내와 동의 문구를 먼저 설정해 주세요.');
+  if (next.intake&&(!next.privacy||!next.consent||!next.consent_label)) throw invalid('개인정보 안내와 동의 문구를 먼저 설정해 주세요.');
   await replace(db,'settings','site',{value:JSON.stringify(next)});
   return next;
 }

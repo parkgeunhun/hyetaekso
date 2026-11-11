@@ -8,6 +8,7 @@ import { boardTitles } from '../pages/content.js';
 import { isVideoUrl } from '../../../shared/media-library.js';
 import { MediaPicker } from './ImageLibrary.jsx';
 import BannerTextEditor from './BannerTextEditor.jsx';
+import DocumentEditor from './DocumentEditor.jsx';
 
 function MediaField({label,value,update,type,category}) {
   const [picker,setPicker]=useState(false);
@@ -35,6 +36,7 @@ export function EditorFields({fields,form,setForm,refs={},mediaCategory='other',
     const value=form[key],update=value=>setForm(prior=>({...prior,[key]:value}));
     if(type==='check')return <label key={key} className="checkbox"><input type="checkbox" checked={Boolean(value)} onChange={e=>update(+e.target.checked)}/>{label}</label>;
     if(type==='area')return <label key={key}>{label}<textarea rows="4" value={value??''} onChange={e=>update(e.target.value)}/></label>;
+    if(type==='document')return <DocumentEditor key={key} label={label} value={value??''} update={update}/>;
     if(['media','picture','video'].includes(type))return <MediaField key={key} label={label} value={value} update={update} type={type} category={mediaCategory}/>;
     if(type==='multiple')return <fieldset key={key}><legend>{label}</legend>{refs.categories?.map(category=><label className="checkbox" key={category.id}><input type="checkbox" checked={(value||[]).includes(category.id)} onChange={e=>update(e.target.checked?[...(value||[]),category.id]:(value||[]).filter(id=>id!==category.id))}/>{category.name}</label>)}</fieldset>;
     if(Array.isArray(type))return <label key={key}>{label}<select value={value??type[0]} onChange={e=>update(e.target.value)}>{type.map(option=><option key={option} value={option}>{optionLabels[option]||option}</option>)}</select></label>;

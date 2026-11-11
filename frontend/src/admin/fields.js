@@ -16,7 +16,9 @@ export const entities={
 export const settingsFields=[
   ['company','회사명'],['phone','고객센터 전화'],['email','이메일'],['hours','상담 시간'],['address','주소'],
   ['registration','사업자등록번호'],['representative','대표자'],['kakao','카카오 상담 주소'],
-  ['privacy','개인정보처리방침','area'],['terms','이용약관','area'],['consent','상담 수집·이용 동의 문구','area'],
+  ['about_title','기업 소개 제목'],['about_info_title','회사 정보 제목'],['about_intro','기업 소개 본문','document'],
+  ['privacy','개인정보 수집 동의서','document'],['terms','이용약관','document'],
+  ['consent','상담 신청 안내 문구','document'],['consent_label','동의 체크박스 문구'],
   ['skt_notice','SKT 공개 조회 주소'],['sc_price','스마트초이스 공개 조회 주소'],
   ['intake','온라인 접수 사용','check'],['retention_days','상담 보관 일수','number'],
   ['banner_autoplay','홈 배너 자동 전환','check'],['banner_interval','배너 전환 간격 (초)','number'],['motion','화면 움직임',['off','subtle','standard']],

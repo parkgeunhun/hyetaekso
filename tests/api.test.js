@@ -96,12 +96,18 @@ async function scenario(db) {
   assert.equal((await request('/admin/supports/'+feedId,'PUT',manual)).status,409);
   assert.equal((await request('/admin/supports/'+feedId,'DELETE')).status,409);
   assert.equal((await db.all('SELECT mode FROM supports WHERE id=?',[feedId]))[0]?.mode,'feed');
-  assert.equal((await request('/admin/settings','PUT',{intake:1})).status,400);
+  assert.equal((await request('/admin/settings','PUT',{intake:1,privacy:'',consent:''})).status,400);
   assert.equal((await request('/admin/settings','PUT',{company:'혜택소 검증',hours:'평일 10:00~18:00',intake:1,privacy:'시험 안내',consent:'시험 동의'})).status,200);
   const banner=await request('/admin/banners','POST',{title:'검증 배너',image:'/media/showroom.png',kind:'image',fit:'cover',enabled:1});
   assert.equal(banner.status,201);
   const site=(await request('/site')).data;
   assert.equal(site.settings.hours,'평일 10:00~18:00');
+  const publicInfo=(await request('/public-info')).data;
+  assert.equal(publicInfo.company,'혜택소 검증');
+  assert.equal(publicInfo.privacy,'시험 안내');
+  assert.equal(publicInfo.registration,'303-87-03455');
+  assert.equal(Object.hasOwn(publicInfo,'intake'),false);
+  assert.equal(Object.hasOwn(publicInfo,'retention_days'),false);
   assert.equal(site.banners[0].image,'/media/showroom.png');
   const {data: navigation}=await request('/admin/navigation');
   const [first,...remaining]=navigation;
@@ -187,6 +193,7 @@ async function scenario(db) {
   assert.equal(JSON.parse(detail.quote).monthly,90252);
   assert.match(JSON.parse(detail.quote).summary,/월 예상 납부액: 90,252원/);
   assert.equal(JSON.parse(detail.consent).text,'시험 동의');
+  assert.equal(JSON.parse(detail.consent).label,'개인정보 수집·이용에 동의합니다.');
   const change={status:'상담중',notes:'처리 중'};
   assert.equal((await request('/admin/leads/'+crypto.randomUUID(),'PATCH',change)).status,404);
   assert.equal((await request('/admin/leads/'+list[0].id,'PATCH',change)).status,200);
@@ -302,6 +309,13 @@ test('private preview exposes the published catalog and its covers to visitors',
     for(const path of [privateCover,'/api/products/'+product.id,'/api/site','/api/admin/leads']){
       assert.equal((await request(path)).status,401);
     }
+    const company=await request('/api/public-info');
+    assert.equal(company.status,200);
+    const info=await company.json();
+    assert.equal(info.company,'주식회사 혜택소');
+    assert.match(info.privacy,/김석민/);
+    assert.match(info.terms,/이용약관/);
+    assert.equal(Object.hasOwn(info,'consent_label'),false);
     await saveRecord(db,'products',{...product,status:'draft'},product.id);
     assert.equal((await request(cover)).status,401);
   } finally {db.close();}

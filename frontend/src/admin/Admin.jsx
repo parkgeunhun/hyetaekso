@@ -22,8 +22,8 @@ const boardSections=Object.fromEntries(Object.keys(boardTitles).map(kind=>['boar
 const imageSections={images:'all',...Object.fromEntries(Object.keys(mediaCategories).map(category=>['images-'+category,category]))};
 const settingSections={
   settings:['motion'],
-  contact:['company','phone','email','hours','address','registration','representative','kakao'],
-  privacy:['privacy','consent'],
+  contact:['company','phone','email','hours','address','registration','representative','kakao','about_title','about_info_title','about_intro'],
+  privacy:['privacy','consent','consent_label'],
   terms:['terms'],
   'phone-guide':['join_change','join_new','join_port','help_enabled','help_text'],
   'support-sources':['skt_notice','sc_price'],
