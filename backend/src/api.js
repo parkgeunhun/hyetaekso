@@ -71,8 +71,9 @@ export async function handleApi(request,env,db) {
       return new Response(null,{status:204,headers:{'Cache-Control':'no-store'}});
     }
     const catalogList=area==='products'&&method==='GET'&&!action&&!id;
+    const publicConsultation=area==='consultations'&&method==='POST'&&!id&&(!action||action==='lookup');
     const mediaRead=area==='media'&&!id&&['GET','HEAD'].includes(method)&&mediaKey.test(action??'');
-    if(env.PRIVATE_PREVIEW&&area!=='admin'&&!catalogList&&!await accountSession(request,db)) {
+    if(env.PRIVATE_PREVIEW&&area!=='admin'&&!catalogList&&!publicConsultation&&!await accountSession(request,db)) {
       if(!mediaRead||!await isPublishedProductCover(db,action,origin)) {
         throw new ApiError(401,'login_required','미리보기 데이터를 보려면 관리자 로그인이 필요합니다.');
       }

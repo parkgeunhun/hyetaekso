@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useEffect,useMemo,useState } from 'react';
 import { Link,useParams } from 'react-router-dom';
 import { useResource } from '../hooks/data.js';
 import { useSite } from '../layouts/SiteLayout.jsx';
 import { Breadcrumb,Section,Status } from '../components/common.jsx';
 import { estimate } from '../../../shared/quote.js';
-import { ConsultationForm } from './Consultation.jsx';
+import { ConsultationLink,useConsultation } from '../components/ConsultationLink.jsx';
+import { discountOptions,phoneInquiry } from '../../../shared/consultation.js';
 
 const won=value=>Number(value).toLocaleString('ko-KR')+'원';
 export function Catalog() {
@@ -25,7 +26,6 @@ export function Catalog() {
 }
 const selectors=[['carrier','구매할 통신사'],['join_type','가입 유형'],['storage','용량'],['plan_id','요금제']];
 const preferredOptions={carrier:['SKT','KT','LG U+','LGU+'],join_type:['기기변경','신규가입','번호이동']};
-const discountOptions=[['support','공통지원금'],['contract','선택약정 25%']];
 const installmentOptions=[24,30,36].map(value=>[value,value+'개월']);
 function optionOrder(key,value) {
   const order=preferredOptions[key];
@@ -58,6 +58,19 @@ function Calculator({item,retry}) {
     });
   }
   const row=selectors.every(([key])=>selection[key])?options(selectors.length,selection)[0]:null;
+  const canConsult=!item.sample&&!item.closed&&Boolean(row||settings.help_enabled===1);
+  const setPhone=useConsultation()?.setPhone;
+  const phoneRequest=useMemo(()=>({
+    detail:phoneInquiry({model:item.name,color,carrier:selection.carrier,join:selection.join_type,storage:selection.storage,
+      plan:item.offers.find(offer=>offer.plan_id===selection.plan_id)?.plan,mode:hasOffers?mode:null,months:hasOffers?months:null}),
+    quoteInput:{productId:item.id,color,selection,offerId:row?.id,version:row?.version,mode,months},
+    onQuoteChanged:retry
+  }),[item,color,selection,hasOffers,row,mode,months,retry]);
+  useEffect(()=>{
+    if(!setPhone||!canConsult)return;
+    setPhone(phoneRequest);
+    return ()=>setPhone(null);
+  },[setPhone,canConsult,phoneRequest]);
   const result=row?estimate(row,mode,months):null;
   const picture=item.colors.find(entry=>entry.name===color)?.image||item.image;
   const joins={기기변경:settings.join_change,신규가입:settings.join_new,번호이동:settings.join_port};
@@ -80,7 +93,7 @@ function Calculator({item,retry}) {
       {result?<div className="quote-box" aria-live="polite"><div><span>출고가</span><b>{won(row.price)}</b></div><div><span>공통지원금</span><b>{result.pending?'확인 중':won(result.support)}</b></div><div><span>추가 지원금</span><b>{won(row.extra)}</b></div><div><span>선택약정 월 할인</span><b>{won(result.discount)}</b></div><div><span>단말기 원금</span><b>{won(result.principal)}</b></div><div className="quote-total"><span>월 예상 납부액</span><strong>{won(result.monthly)}</strong></div><small>할부 이자 제외. {result.pending&&'공통지원금 차감 전 금액입니다.'}</small></div>:<p className="message">{hasOffers?'통신사, 가입 유형, 용량, 요금제를 선택해 주세요.':'이 모델의 통신사와 요금제 조건을 준비 중입니다.'}</p>}
     </section>
     {item.sample||item.closed?<p className="message">{item.sample?'전시 예시 상품입니다. 계산 결과를 확인할 수 있습니다.':'이 상품은 상담 접수가 마감되었습니다.'}</p>:
-      (row||settings.help_enabled===1)&&<ConsultationForm fixedService="휴대폰" quoteInput={{productId:item.id,color,selection,offerId:row?.id,version:row?.version,mode,months}} onQuoteChanged={retry}/>}
+      canConsult&&<ConsultationLink className="btn primary phone-consultation-button" service="휴대폰" fromPhone>선택한 조건으로 상담 신청</ConsultationLink>}
     </div></div>;
 }
 export function PhoneDetail() {

@@ -42,6 +42,7 @@ test('insurance shares the public header and the dark mode choice survives a rel
   await expect(page.getByRole('contentinfo')).toHaveCSS('background-color','rgb(24, 35, 50)');
   await consult.click();
   await expect(page.getByRole('textbox',{name:'이름',exact:true})).toHaveCSS('background-color','rgb(32, 45, 63)');
+  await expect(page.getByRole('dialog',{name:'상담 신청',exact:true}).getByRole('combobox',{name:'상담 유형',exact:true})).toHaveValue('보험');
   await page.reload();
   await expect(toggle).toHaveAttribute('aria-pressed','true');
   await expect(header).toHaveCSS('background-color','rgb(24, 35, 50)');
@@ -54,10 +55,10 @@ test('insurance shares the public header and the dark mode choice survives a rel
 test('consultations can be looked up, filtered, manually registered and selectively deleted',async({page})=>{
   await page.goto('/consult?service=렌탈');
   await page.getByLabel('이름',{exact:true}).fill('검증 고객');
-  await page.getByLabel('휴대폰 번호',{exact:true}).fill('01000000000');
-  await page.getByLabel('상담 내용',{exact:true}).fill('격리된 브라우저 검증');
+  await page.getByLabel('연락처',{exact:true}).fill('01000000000');
+  await page.getByLabel('문의 내용',{exact:true}).fill('격리된 브라우저 검증');
   await page.getByRole('checkbox').check();
-  await page.getByRole('button',{name:'상담 신청하기',exact:true}).click();
+  await page.getByRole('button',{name:'상담 신청',exact:true}).click();
   const receipt=await page.locator('.success strong').textContent();
   expect(receipt).toMatch(/^HT-/);
   await page.getByRole('link',{name:'신청 내역 조회',exact:true}).click();
@@ -465,6 +466,35 @@ test('administrator changes the public banner and registers a phone with pricing
   await page.getByRole('link',{name:'공개 상품 보기'}).click();
   await expect(page.getByRole('heading',{name:'등록 확인 휴대폰',exact:true})).toBeVisible();
   await expect(page.getByRole('button',{name:'256GB',exact:true})).toBeVisible();
+  const purchase=page.getByRole('region',{name:'구매 조건 선택'});
+  await purchase.getByRole('button',{name:'SKT',exact:true}).click();
+  await purchase.getByRole('button',{name:'기기변경',exact:true}).click();
+  await purchase.getByRole('button',{name:'256GB',exact:true}).click();
+  await purchase.getByRole('combobox',{name:'요금제',exact:true}).selectOption('skt-5g');
+  await purchase.getByRole('button',{name:'선택약정 25%',exact:true}).click();
+  await purchase.getByRole('button',{name:'30개월',exact:true}).click();
+  await page.getByRole('link',{name:'선택한 조건으로 상담 신청',exact:true}).click();
+  const inquiry=page.getByRole('dialog',{name:'상담 신청',exact:true});
+  const inquiryText='등록 확인 휴대폰, SKT 기기변경, 선택약정 25%, 256GB, 블랙, 5G 예시 요금제, 30개월 할부';
+  await expect(inquiry.getByRole('textbox',{name:'문의 내용',exact:true})).toHaveValue(inquiryText);
+  await inquiry.getByRole('button',{name:'닫기',exact:true}).click();
+  await page.getByRole('banner').getByRole('link',{name:'상담 신청',exact:true}).click();
+  await expect(inquiry.getByRole('combobox',{name:'상담 유형',exact:true})).toHaveValue('휴대폰');
+  await expect(inquiry.getByRole('textbox',{name:'문의 내용',exact:true})).toHaveValue(inquiryText);
+  await inquiry.getByLabel('이름',{exact:true}).fill('선택 조건 검증');
+  await inquiry.getByLabel('연락처',{exact:true}).fill('01000000000');
+  await inquiry.getByLabel('이메일 (선택)').fill('test@example.com');
+  await inquiry.getByLabel('생년월일',{exact:true}).fill('1990-01-01');
+  await inquiry.getByLabel('남은 위약금',{exact:true}).selectOption('no');
+  await inquiry.getByLabel('남은 할부금',{exact:true}).selectOption('no');
+  await inquiry.getByRole('checkbox').check();
+  await inquiry.getByRole('button',{name:'상담 신청',exact:true}).click();
+  const inquiryReceipt=await inquiry.locator('.success strong').textContent();
+  const {items:[inquiryLead]}=await (await page.request.get('/api/admin/leads?q='+inquiryReceipt)).json();
+  const inquiryDetail=await (await page.request.get('/api/admin/leads/'+inquiryLead.id)).json();
+  expect(inquiryDetail.email).toBe('test@example.com');
+  expect(inquiryDetail.details).toBe(inquiryText);
+  expect(JSON.parse(inquiryDetail.quote).mode).toBe('contract');
 
   await page.goto('/admin/capacities');
   const table=page.getByRole('table');

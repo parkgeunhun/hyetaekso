@@ -40,5 +40,5 @@ export const pages={
   insurance:{tile:8,kicker:'당신의 삶을 지키는 든든한 파트너',title:['보험도 혜택소에서','쉽고, 정확하게 살펴보세요!'],description:'생활에 필요한 보험의 주요 보장 항목과 종류별 차이를 알아보세요.',section:'보험 상품 안내',cards:[
     ['실손의료보험','HeartPulse','입원·통원 의료비','보장 범위와 자기부담금 확인'],['종합보험','ShieldCheck','질병과 상해 보장','특약과 보장 한도 확인'],['자동차보험','CarFront','대인·대물·자기신체','운전자 범위와 보장 확인'],['어린이보험','Baby','성장기 질병·상해','가입 조건과 갱신 여부 확인'],['연금·노후보험','HeartHandshake','노후 생활자금','납입과 연금 수령 조건 확인']]}
 };
-export const serviceTypes=['휴대폰','인터넷','TV','렌탈','이사·홈','공간','모빌리티','사업자 서비스','가맹안내','고객문의','제휴·입점','고객의 소리'];
+export { serviceTypes } from './consultation.js';
 export const boardTitles={notice:'공지사항',faq:'자주 묻는 질문',review:'이용후기',qna:'질문답변',rental:'렌탈 상품',page:'서비스 안내'};

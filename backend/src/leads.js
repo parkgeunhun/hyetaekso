@@ -1,8 +1,8 @@
 import { digest, token, text, choice, money, invalid, ApiError, rateLimit } from './security.js';
 import { quote, product } from './catalog.js';
 import { settings, statuses } from './records.js';
+import { consultationEmailNotice, serviceTypes } from '../../shared/consultation.js';
 
-export const services=['휴대폰','인터넷','TV','렌탈','이사·홈','공간','모빌리티','사업자 서비스','가맹안내','고객문의','제휴·입점','고객의 소리'];
 function phoneNumber(value) {
   const phone=text(value,'전화번호',20).replace(/[\s-]/g,'');
   if (!/^01[016789]\d{7,8}$/.test(phone)) throw invalid('휴대폰 번호를 확인해 주세요.');
@@ -15,16 +15,21 @@ function birthDate(value) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(birth)||!Number.isFinite(+date)||date.toISOString().slice(0,10)!==birth||birth>new Date(Date.now()+32400000).toISOString().slice(0,10)) throw invalid('생년월일을 확인해 주세요.');
   return birth;
 }
+function emailAddress(value) {
+  const email=text(value??'','이메일',254,false);
+  if(email&&!/^[^\s@]+@[^\s@.]+(?:\.[^\s@.]+)+$/.test(email))throw invalid('이메일 주소를 확인해 주세요.');
+  return email;
+}
 function leadRequestKey(value) {
   const key=text(value,'요청 번호',64);
   if (!/^[a-z0-9-]{32,64}$/i.test(key)) throw invalid('요청 번호를 확인해 주세요.');
   return key;
 }
-async function insertLead(db,{requestKey,service,name,phone,birth='',details,status='접수완료',snapshot={},consent,createdAt}) {
+async function insertLead(db,{requestKey,service,name,phone,email='',birth='',details,status='접수완료',snapshot={},consent,createdAt}) {
   const id=crypto.randomUUID(),receipt='HT-'+token().slice(0,16).toUpperCase();
   await db.run(
-    'INSERT INTO leads(id,receipt,request_key,service,name,phone,birth,details,status,notes,quote,consent,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)',
-    [id,receipt,requestKey,service,name,phone,birth,details,status,'',JSON.stringify(snapshot),JSON.stringify(consent),createdAt]
+    'INSERT INTO leads(id,receipt,request_key,service,name,phone,email,birth,details,status,notes,quote,consent,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+    [id,receipt,requestKey,service,name,phone,email,birth,details,status,'',JSON.stringify(snapshot),JSON.stringify(consent),createdAt]
   );
   return {id,receipt};
 }
@@ -32,11 +37,13 @@ export async function submitLead(db,request,input) {
   await rateLimit(db,request,'lead',12,3600000);
   const config=await settings(db);
   if (!config.intake) throw new ApiError(503,'intake_closed','현재 온라인 상담 접수를 준비하고 있습니다.');
-  const service=choice(input.service,services,'상담 유형');
+  const service=choice(input.service,serviceTypes,'상담 유형');
   const phone=phoneNumber(input.phone), name=text(input.name,'이름',80);
-  if(service==='휴대폰'&&(name.length<2||name.length>40)) throw invalid('이름은 2~40자로 입력해 주세요.');
+  const email=emailAddress(input.email),phoneQuote=service==='휴대폰'&&Boolean(input.productId);
+  if(phoneQuote&&(name.length<2||name.length>40)) throw invalid('이름은 2~40자로 입력해 주세요.');
+  if(input.offerId&&!phoneQuote)throw invalid('상담할 휴대폰을 선택해 주세요.');
   const birth=birthDate(input.birth??'');
-  if (service==='휴대폰'&&!birth) throw invalid('생년월일을 입력해 주세요.');
+  if (phoneQuote&&!birth) throw invalid('생년월일을 입력해 주세요.');
   if (input.consent!==true) throw invalid('개인정보 수집·이용 동의를 확인해 주세요.');
   const requestKey=leadRequestKey(input.requestKey);
   const [previous]=await db.all('SELECT receipt,phone FROM leads WHERE request_key=?',[requestKey]);
@@ -45,8 +52,7 @@ export async function submitLead(db,request,input) {
     return {receipt:previous.receipt,message:config.success_text};
   }
   let snapshot={};
-  if (service==='휴대폰') {
-    if (!input.productId) throw invalid('상담할 휴대폰을 선택해 주세요.');
+  if (phoneQuote) {
     const item=await product(db,input.productId);
     if (item.sample||item.closed) throw invalid('이 상품은 상담 접수가 불가능합니다.');
     if (input.offerId) {
@@ -69,7 +75,7 @@ export async function submitLead(db,request,input) {
       if (snapshot[key]==='yes'&&input[key+'Amount']!==''&&input[key+'Amount']!=null) snapshot[key+'Amount']=money(input[key+'Amount'],'남은 금액',1);
     }
   }
-  if(service==='휴대폰') {
+  if(phoneQuote) {
     const row=snapshot.row??snapshot.selected??{};
     const won=value=>typeof value==='number'?value.toLocaleString('ko-KR')+'원':'';
     const remainder=key=>snapshot[key]==='no'?'없음':(won(snapshot[key+'Amount'])||'있음 · 금액 미입력');
@@ -83,9 +89,10 @@ export async function submitLead(db,request,input) {
   }
   const details=text(input.details??'','상담 내용',3000,false);
   const createdAt=Date.now();
-  const consent={text:config.consent,label:config.consent_label,privacy:config.privacy,agreedAt:createdAt};
+  const consent={text:config.consent,label:config.consent_label,privacy:config.privacy,agreedAt:createdAt,
+    ...(email?{emailNotice:consultationEmailNotice}:{})};
   try {
-    const {receipt}=await insertLead(db,{requestKey,service,name,phone,birth,details,snapshot,consent,createdAt});
+    const {receipt}=await insertLead(db,{requestKey,service,name,phone,email,birth,details,snapshot,consent,createdAt});
     return {receipt,message:config.success_text};
   } catch(error) {
     const [existing]=await db.all('SELECT receipt,phone FROM leads WHERE request_key=?',[requestKey]);
@@ -94,20 +101,21 @@ export async function submitLead(db,request,input) {
   }
 }
 export async function createManualLead(db,input,username) {
-  const service=choice(input.service,services,'상담 유형');
+  const service=choice(input.service,serviceTypes,'상담 유형');
   const name=text(input.name,'이름',80);
   const phone=phoneNumber(input.phone);
+  const email=emailAddress(input.email);
   const details=text(input.details??'','상담 내용',3000,false);
   const status=choice(input.status??'접수완료',statuses,'상담 상태');
   const requestKey=digest('manual-lead:'+username+':'+leadRequestKey(input.requestKey));
   const createdAt=Date.now();
   const consent={source:'manual',registeredBy:username,registeredAt:createdAt};
   try {
-    return await insertLead(db,{requestKey,service,name,phone,details,status,consent,createdAt});
+    return await insertLead(db,{requestKey,service,name,phone,email,details,status,consent,createdAt});
   } catch(error) {
-    const [prior]=await db.all('SELECT id,receipt,service,name,phone,details FROM leads WHERE request_key=?',[requestKey]);
+    const [prior]=await db.all('SELECT id,receipt,service,name,phone,email,details FROM leads WHERE request_key=?',[requestKey]);
     if (!prior) throw error;
-    if (prior.service!==service||prior.name!==name||prior.phone!==phone||prior.details!==details) {
+    if (prior.service!==service||prior.name!==name||prior.phone!==phone||prior.email!==email||prior.details!==details) {
       throw new ApiError(409,'request_conflict','이 등록 요청은 이미 저장되었습니다. 상담 목록에서 확인해 주세요.');
     }
     return {id:prior.id,receipt:prior.receipt};

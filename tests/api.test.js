@@ -6,7 +6,7 @@ import { connectMysql } from '../backend/src/db.js';
 import { handleApi } from '../backend/src/api.js';
 import { databaseMedia } from '../backend/src/media-store.js';
 import { passwordHash } from '../backend/src/security.js';
-import { saveRecord } from '../backend/src/records.js';
+import { saveRecord,saveSettings } from '../backend/src/records.js';
 import { koreaDay, recentPageViews, recordPageView } from '../backend/src/page-views.js';
 
 const origin='http://127.0.0.1:5173',env={APP_ORIGIN:origin,LOCAL_DEV:true};
@@ -106,7 +106,7 @@ async function scenario(db) {
   assert.equal(publicInfo.company,'혜택소 검증');
   assert.equal(publicInfo.privacy,'시험 안내');
   assert.equal(publicInfo.registration,'303-87-03455');
-  assert.equal(Object.hasOwn(publicInfo,'intake'),false);
+  assert.equal(publicInfo.intake,1);
   assert.equal(Object.hasOwn(publicInfo,'retention_days'),false);
   assert.equal(site.banners[0].image,'/media/showroom.png');
   const {data: navigation}=await request('/admin/navigation');
@@ -182,14 +182,18 @@ async function scenario(db) {
   assert.equal((await request('/quote','POST',{...selection,months:12})).status,400);
   assert.equal((await request('/quote','POST',{...selection,months:[24]})).status,400);
   assert.equal((await request('/quote','POST',{offerId:offer.id})).status,400);
-  const lead={...selection,name:'시험 고객',phone:'01000000000',birth:'1990-01-01',consent:true,service:'휴대폰',requestKey:crypto.randomUUID(),penalty:'no',balance:'no'};
+  const lead={...selection,name:'시험 고객',phone:'01000000000',email:'test@example.com',details:'검증 휴대폰 수정, 검증 통신사 번호이동, 공통지원금',
+    birth:'1990-01-01',consent:true,service:'휴대폰',requestKey:crypto.randomUUID(),penalty:'no',balance:'no'};
   assert.equal((await request('/consultations','POST',{...lead,consent:false})).status,400);
+  assert.equal((await request('/consultations','POST',{...lead,email:'잘못된 이메일'})).status,400);
   const created=await request('/consultations','POST',lead);
   assert.equal(created.status,201);
   assert.equal((await request('/consultations','POST',lead)).data.receipt,created.data.receipt);
   const list=(await request('/admin/leads')).data.items;
   assert.equal(list.length,1);
   const detail=(await request('/admin/leads/'+list[0].id)).data;
+  assert.equal(detail.email,lead.email);
+  assert.equal(detail.details,lead.details);
   assert.equal(JSON.parse(detail.quote).monthly,90252);
   assert.match(JSON.parse(detail.quote).summary,/월 예상 납부액: 90,252원/);
   assert.equal(JSON.parse(detail.consent).text,'시험 동의');
@@ -315,7 +319,20 @@ test('private preview exposes the published catalog and its covers to visitors',
     assert.equal(info.company,'주식회사 혜택소');
     assert.match(info.privacy,/김석민/);
     assert.match(info.terms,/이용약관/);
-    assert.equal(Object.hasOwn(info,'consent_label'),false);
+    assert.equal(info.consent_label,'개인정보 수집·이용에 동의합니다.');
+    assert.equal(info.intake,0);
+    const guestPost=(path,body)=>handleApi(new Request(previewOrigin+path,{
+      method:'POST',headers:{origin:previewOrigin,'content-type':'application/json'},body:JSON.stringify(body)
+    }),{APP_ORIGIN:previewOrigin,PRIVATE_PREVIEW:true},db);
+    const inquiry={service:'휴대폰',name:'일반 문의',phone:'01000000000',requestKey:crypto.randomUUID(),consent:true};
+    assert.equal((await guestPost('/api/consultations',inquiry)).status,503);
+    await saveSettings(db,{intake:1});
+    const submitted=await guestPost('/api/consultations',inquiry);
+    assert.equal(submitted.status,201);
+    const {receipt}=await submitted.json();
+    const lookup=await guestPost('/api/consultations/lookup',{receipt,phone:inquiry.phone});
+    assert.equal(lookup.status,200);
+    assert.equal((await lookup.json()).service,'휴대폰');
     await saveRecord(db,'products',{...product,status:'draft'},product.id);
     assert.equal((await request(cover)).status,401);
   } finally {db.close();}

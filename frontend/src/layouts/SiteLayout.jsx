@@ -5,6 +5,9 @@ import { menuLabel, siteMenu } from '../../../shared/navigation.js';
 import { useResource } from '../hooks/data.js';
 import { Icon } from '../components/common.jsx';
 import { defaultBrandImage } from '../../../shared/site-appearance.js';
+import { serviceByPage } from '../../../shared/consultation.js';
+import ConsultationDialog from '../components/ConsultationDialog.jsx';
+import { ConsultationLink } from '../components/ConsultationLink.jsx';
 import './site-theme.css';
 
 const defaultSite={settings:{company:'혜택소'},banners:[],appearance:{}};
@@ -22,6 +25,9 @@ export default function SiteLayout() {
   const [dark,setDark]=useState(false);
   const {settings,navigation}=config;
   const favicon=config.appearance?.favicon?.image;
+  const [,currentPage,subpage]=location.pathname.split('/');
+  const consultationService=Object.hasOwn(serviceByPage,currentPage)?serviceByPage[currentPage]:
+    currentPage==='board'?(subpage==='rental'?'렌탈':'고객문의'):undefined;
   useEffect(()=>setDark(document.documentElement.dataset.siteTheme==='dark'),[]);
   function toggleTheme() {
     const next=dark?'light':'dark';
@@ -54,7 +60,7 @@ export default function SiteLayout() {
     elements.forEach(element=>{element.classList.add('will-reveal');observer.observe(element);});
     return ()=>{observer.disconnect();elements.forEach(el=>el.classList.remove('will-reveal','entered'));};
   },[location.pathname,settings.motion]);
-  return <SiteContext.Provider value={config}><div className="site-shell">
+  return <SiteContext.Provider value={config}><div className="site-shell"><ConsultationDialog>
     <a className="skip" href="#content">본문으로 바로가기</a>
     <header className="site-header">
       <div className="header-inner"><Logo/><button className="menu-toggle btn" aria-expanded={menuOpen} aria-controls="main-nav" onClick={()=>setMenuOpen(!menuOpen)}>{menuOpen?'닫기':'메뉴 ☰'}</button>
@@ -67,7 +73,7 @@ export default function SiteLayout() {
             title={dark?'라이트 모드로 전환':'다크 모드로 전환'} onClick={toggleTheme}>
             {dark?<Sun size={18} aria-hidden="true"/>:<Moon size={18} aria-hidden="true"/>}
           </button>
-          <Link className="btn primary" to="/consult">상담 신청</Link>
+          <ConsultationLink className="btn primary" service={consultationService} fromPhone={currentPage==='phones'&&Boolean(subpage)}>상담 신청</ConsultationLink>
         </div>
       </div></div>
     </header>
@@ -76,5 +82,5 @@ export default function SiteLayout() {
       <div><strong>고객센터</strong>{settings.phone&&<p>{settings.phone}</p>}{settings.hours&&<p>{settings.hours}</p>}{settings.email&&<a href={'mailto:'+settings.email}>{settings.email}</a>}</div>
       <div><strong>바로가기</strong><Link to="/privacy">개인정보처리방침</Link><Link to="/terms">이용약관</Link><Link to="/support">고객센터</Link><Link to="/sitemap">사이트맵</Link></div>
       <div className="footer-sign">더 나은 일상의 시작<br/><b>혜택소</b><small>LIFE BENEFIT PLATFORM</small></div></div></footer>
-  </div></SiteContext.Provider>;
+  </ConsultationDialog></div></SiteContext.Provider>;
 }

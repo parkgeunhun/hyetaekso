@@ -210,3 +210,27 @@ legend{font-weight:700}
 .consultation-consent { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; }
 .consultation-consent summary { cursor: pointer; font-weight: 650; }
 .about-panel dd { overflow-wrap: anywhere; }
+.consultation-dialog {
+  width: min(490px, calc(100% - 24px));
+  max-height: calc(100dvh - 24px);
+  padding: clamp(17px, 5vw, 28px);
+  border-radius: 21px;
+  overscroll-behavior: contain;
+}
+.consultation-dialog::backdrop { background: #17151185; }
+.consultation-dialog > header { margin-bottom: 4px; }
+.consultation-dialog > header h2 { font-size: 23px; letter-spacing: -.04em; }
+.consultation-dialog > header .btn { padding: 0; width: 34px; min-height: 34px; border-color: transparent; color: var(--muted); }
+.consultation-form, .consultation-phone-fields { display: grid; gap: 13px; }
+.consultation-form label { font-size: 14px; }
+.consultation-form .filters { margin: 0; }
+.consultation-intro { color: var(--muted); font-size: 14px; margin: 0 0 6px; }
+.consultation-form small { color: var(--muted); font-weight: 500; }
+.consultation-form :is(input:not([type=checkbox]),select,textarea) { border-color: var(--line); min-height: 44px; border-radius: 10px; font-size: 16px; }
+.consultation-form :is(input,select,textarea):focus-visible { outline-offset: 1px; outline-color: var(--accent); }
+.consultation-form textarea { resize: vertical; }
+.consultation-phone-fields { border-top: 1px solid var(--line); padding-top: 12px; }
+.consultation-form .consultation-consent { font-size: 14px; }
+.consultation-consent :is(summary,a) { color: var(--accent-text, #995600); }
+.consultation-submit.btn { width: 100%; min-height: 49px; border-radius: 999px; }
+.phone-consultation-button { width: 100%; margin-top: 10px; }

@@ -32,6 +32,7 @@ function ManualLeadForm({onClose,onCreated}) {
       </select></label>
       <label>이름<input name="name" required maxLength={80}/></label>
       <label>휴대폰 번호<input name="phone" type="tel" required maxLength={20}/></label>
+      <label>이메일 (선택)<input name="email" type="email" maxLength={254}/></label>
       <label>진행 상태<select name="status">{leadStates.map(state=><option key={state}>{state}</option>)}</select></label>
       <label>상담 내용<textarea name="details" rows={4} maxLength={3000}/></label>
       {error&&<p className="message error" role="alert">{error}</p>}
@@ -62,6 +63,7 @@ function LeadDetails({id,onClose,onSaved}) {
     {row&&<form className="form-stack" onSubmit={save}>
       <p>{row.receipt} · {row.service}</p>
       <p>{[row.name,row.phone,row.birth].filter(Boolean).join(' · ')}</p>
+      {row.email&&<p>이메일 {row.email}</p>}
       <p className="preserve">{row.details}</p>
       {consent?.source==='manual'?<p>수동 등록 · {consent.registeredBy}</p>:<details>
         <summary>신청 당시 견적·동의 기록</summary>

@@ -123,7 +123,7 @@ export const companyDocuments={
 };
 
 const publicFields=['company','representative','registration','address','phone','email','hours',
-  'about_title','about_info_title','about_intro','privacy','terms'];
+  'about_title','about_info_title','about_intro','privacy','terms','intake','consent','consent_label'];
 
 export function publicCompanyInfo(settings) {
   return Object.fromEntries(publicFields.map(key=>[key,settings[key]]));
