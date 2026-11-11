@@ -73,14 +73,23 @@
 .media-delete-list{max-height:160px;overflow:auto;padding-left:22px;overflow-wrap:anywhere}
 .media-gallery-filters>*{min-width:0}
 .dialog.banner-editor-dialog{width:min(1000px,calc(100% - 26px))}
-.banner-editor{display:grid;min-width:0;gap:12px;padding:12px;border:1px solid var(--line);border-radius:8px}
+.banner-editor{display:grid;min-width:0;gap:12px;padding:clamp(10px,2vw,18px);border:1px solid var(--line);border-radius:14px;background:#fff}
 .banner-editor .admin-head,.banner-editor h2{margin:0}
-.banner-editor-preview{width:100%;max-width:1000px;justify-self:center;container-type:inline-size;overflow:hidden;border:1px solid var(--line);border-radius:8px}
+.banner-editor-toolbar{display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px}
+.banner-editor-toolbar .btn,.banner-layer-actions .btn{min-height:38px;padding:7px 10px}
+.banner-editor-stage{display:grid;min-width:0;padding:clamp(5px,1vw,14px);border-radius:10px;background:#eef0f3}
+.banner-editor-preview{width:100%;max-width:1000px;justify-self:center;container-type:inline-size;overflow:hidden;border:1px solid var(--line);border-radius:8px;background:#182332}
 .banner-editor-preview-narrow{max-width:390px}
 .banner-editor-slide{height:clamp(320px,38cqw,600px)}
-.banner-editor-controls{display:grid;gap:10px;min-width:0}
+.banner-editor-controls{display:grid;gap:10px;min-width:0;padding:10px;border:1px solid var(--line);border-radius:10px}
 .banner-editor-controls .actions{align-items:end}
 .banner-editor-controls .actions label{flex:1 1 160px;min-width:0}
+.banner-layer-actions .btn{min-width:38px}
+.banner-icon-picker{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(78px,100%),1fr));gap:7px;padding:9px;border-radius:10px;background:#f6f5f2}
+.banner-icon-picker button{display:grid;justify-items:center;gap:5px;min-width:0;padding:7px 4px;border:1px solid transparent;border-radius:8px;background:transparent;color:#182332;font:inherit;font-size:12px;font-weight:650}
+.banner-icon-picker button:hover,.banner-icon-picker button:focus-visible{background:#fff8ea;border-color:#e5a93d}
+.banner-icon-picker button>span{display:grid;place-items:center;width:37px;aspect-ratio:1;border-radius:50%;background:white;box-shadow:0 3px 10px #131f2c14}
+.banner-icon-picker svg{width:18px;height:18px}
 .banner-editor-properties{display:grid;grid-template-columns:repeat(auto-fit,minmax(108px,1fr));gap:8px;align-items:end}
 .banner-editor-properties input[type=color]{min-height:39px;padding:4px;cursor:pointer}
 .banner-editor .actions [aria-pressed=true]{background:#182332;color:#fff}

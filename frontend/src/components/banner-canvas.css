@@ -10,6 +10,12 @@
 .banner-text-item{position:absolute;white-space:pre-wrap;overflow-wrap:anywhere;text-align:left;letter-spacing:normal;text-wrap:wrap}
 .banner-text-handle{border:0;padding:0;background:none;pointer-events:auto;cursor:move;touch-action:none;min-width:16px;font-family:inherit}
 .banner-text-handle[aria-pressed=true]{outline:2px dashed #3481e5;outline-offset:3px;background:#5b9cff1a}
+.banner-icon-item{position:absolute;display:grid;place-items:center;aspect-ratio:1;padding:0}
+.banner-icon-item[data-icon-shape=circle],.banner-icon-item[data-icon-shape=rounded]{background:var(--banner-icon-background);box-shadow:0 4px 14px #131f2c20}
+.banner-icon-item[data-icon-shape=circle]{border-radius:50%}
+.banner-icon-item[data-icon-shape=rounded]{border-radius:23%}
+.banner-icon-item svg{width:44%;height:44%}
+.banner-icon-item[data-icon-shape=plain] svg{width:74%;height:74%}
 .banner-screen-reader-title{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
 @container banner-hero (max-width:600px){
   .hero-layered>.service-art{left:0;opacity:.35}

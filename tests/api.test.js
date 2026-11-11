@@ -135,11 +135,17 @@ async function scenario(db) {
   assert.equal(heroWithLayout.status,200);
   const normalized={...layer,text:'첫 문구\n둘째 줄'};
   assert.deepEqual((await request('/site')).data.appearance['home-hero'].layers,[normalized]);
+  const badge={id:'support-icon',type:'icon',icon:'headset',x:72,y:26,size:56,color:'#17202c',background:'#ffffff',shape:'circle'};
+  for(const invalidIcon of [{icon:'unknown'},{shape:'triangle'},{background:'red'},{size:0}]) {
+    assert.equal((await request('/admin/appearance/home-hero','PUT',{layers:[{...badge,...invalidIcon}]})).status,400);
+  }
+  assert.equal((await request('/admin/appearance/home-hero','PUT',{...publicAppearance,layers:[{...layer,align:'center'},badge]})).status,200);
+  assert.deepEqual((await request('/site')).data.appearance['home-hero'].layers,[{...normalized,align:'center'},badge]);
   const oldBanner={...site.banners[0],intro:1};
-  assert.equal((await request('/admin/banners/'+oldBanner.id,'PUT',{...oldBanner,layers:[layer]})).status,200);
-  assert.deepEqual((await request('/site')).data.banners[0].layers,[normalized]);
+  assert.equal((await request('/admin/banners/'+oldBanner.id,'PUT',{...oldBanner,layers:[layer,badge]})).status,200);
+  assert.deepEqual((await request('/site')).data.banners[0].layers,[normalized,badge]);
   assert.equal((await request('/admin/banners/'+oldBanner.id,'PUT',oldBanner)).status,200);
-  assert.deepEqual((await request('/admin/banners')).data[0].layers,[normalized]);
+  assert.deepEqual((await request('/admin/banners')).data[0].layers,[normalized,badge]);
   assert.equal((await request('/admin/banners/'+oldBanner.id,'PUT',{...oldBanner,layers:null})).status,200);
   assert.equal((await request('/site')).data.banners[0].layers,undefined);
   assert.equal((await request('/admin/appearance/home-hero','DELETE')).status,200);
