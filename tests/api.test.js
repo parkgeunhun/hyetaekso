@@ -8,6 +8,8 @@ import { databaseMedia } from '../backend/src/media-store.js';
 import { passwordHash } from '../backend/src/security.js';
 import { saveRecord,saveSettings } from '../backend/src/records.js';
 import { koreaDay, recentPageViews, recordPageView } from '../backend/src/page-views.js';
+import { newLeadReceipt } from '../backend/src/leads.js';
+import { serviceReceiptCodes, serviceTypes } from '../shared/consultation.js';
 
 const origin='http://127.0.0.1:5173',env={APP_ORIGIN:origin,LOCAL_DEV:true};
 async function scenario(db) {
@@ -39,7 +41,7 @@ async function scenario(db) {
   assert.equal((await request('/admin/leads','POST',{...manualLead,phone:'123'})).status,400);
   const manualCreated=await request('/admin/leads','POST',manualLead);
   assert.equal(manualCreated.status,201);
-  assert.match(manualCreated.data.receipt,/^HT-/);
+  assert.match(manualCreated.data.receipt,/^HT-B\d{14}-[0-9A-F]{16}$/);
   assert.deepEqual((await request('/admin/leads','POST',manualLead)).data,manualCreated.data);
   assert.equal((await request('/admin/leads','POST',{...manualLead,details:'다른 내용'})).status,409);
   const createdDetail=(await request('/admin/leads/'+manualCreated.data.id)).data;
@@ -188,6 +190,7 @@ async function scenario(db) {
   assert.equal((await request('/consultations','POST',{...lead,email:'잘못된 이메일'})).status,400);
   const created=await request('/consultations','POST',lead);
   assert.equal(created.status,201);
+  assert.match(created.data.receipt,/^HT-A\d{14}-[0-9A-F]{16}$/);
   assert.equal((await request('/consultations','POST',lead)).data.receipt,created.data.receipt);
   const list=(await request('/admin/leads')).data.items;
   assert.equal(list.length,1);
@@ -203,6 +206,9 @@ async function scenario(db) {
   assert.equal((await request('/admin/leads/'+list[0].id,'PATCH',change)).status,200);
   assert.equal((await request('/consultations/lookup','POST',{receipt:created.data.receipt,phone:lead.phone})).data.status,'상담중');
   assert.equal((await request('/consultations/lookup','POST',{receipt:created.data.receipt,phone:'01000000001'})).status,404);
+  const legacyReceipt='HT-0123456789ABCDEF';
+  await db.run('UPDATE leads SET receipt=? WHERE id=?',[legacyReceipt,list[0].id]);
+  assert.equal((await request('/consultations/lookup','POST',{receipt:legacyReceipt.toLowerCase(),phone:lead.phone})).data.receipt,legacyReceipt);
   const file=await request('/admin/excel/manufacturers');
   assert.equal(file.status,200);
   const workbook=new ExcelJS.Workbook();await workbook.xlsx.load(Buffer.from(file.data));
@@ -274,6 +280,15 @@ async function scenario(db) {
   assert.equal((await request('/admin/leads')).status,401);
 }
 test('SQLite API workflow and workbook',async()=>{const db=await sqlite(':memory:');try{await scenario(db);}finally{db.close();}});
+test('consultation receipts include a unique service code and Korean local timestamp',()=>{
+  const time=Date.parse('2026-11-10T15:00:00Z');
+  assert.equal(new Set(Object.values(serviceReceiptCodes)).size,serviceTypes.length);
+  for(const service of serviceTypes){
+    assert.match(newLeadReceipt(service,time),new RegExp('^HT-'+serviceReceiptCodes[service]+'20261111000000-[0-9A-F]{16}$'));
+  }
+  assert.match(newLeadReceipt('휴대폰',time-1),/^HT-A20261110235959-/);
+  assert.notEqual(newLeadReceipt('렌탈',time),newLeadReceipt('렌탈',time));
+});
 test('page views roll over at midnight in Korea and distinguish untracked days',async()=>{
   const db=await sqlite(':memory:');
   const midnight=Date.parse('2026-11-11T15:00:00Z');

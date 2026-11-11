@@ -1,4 +1,9 @@
-export const serviceTypes=['휴대폰','통신','인터넷','TV','렌탈','이사·홈','공간','모빌리티','보험','사업자 서비스','가맹안내','고객문의','제휴·입점','고객의 소리'];
+export const serviceReceiptCodes={
+  휴대폰:'A',통신:'E',인터넷:'C',TV:'D',렌탈:'B','이사·홈':'F',공간:'G',모빌리티:'H',보험:'I',
+  '사업자 서비스':'J',가맹안내:'K',고객문의:'L','제휴·입점':'M','고객의 소리':'N'
+};
+
+export const serviceTypes=Object.keys(serviceReceiptCodes);
 
 export const serviceByPage={
   about:'고객문의',telecom:'통신',phones:'휴대폰',catalog:'휴대폰',rental:'렌탈',moving:'이사·홈',

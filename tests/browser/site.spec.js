@@ -62,7 +62,7 @@ test('consultations can be looked up, filtered, manually registered and selectiv
   await page.getByRole('checkbox').check();
   await page.getByRole('button',{name:'상담 신청',exact:true}).click();
   const receipt=await page.locator('.success strong').textContent();
-  expect(receipt).toMatch(/^HT-/);
+  expect(receipt).toMatch(/^HT-B\d{14}-[0-9A-F]{16}$/);
   await page.getByRole('link',{name:'신청 내역 조회',exact:true}).click();
   await page.getByLabel('신청번호',{exact:true}).fill(receipt);
   await page.getByLabel('신청 당시 휴대폰 번호',{exact:true}).fill('01000000000');
@@ -509,6 +509,7 @@ test('administrator changes the public banner and registers a phone with pricing
   await inquiry.getByRole('checkbox').check();
   await inquiry.getByRole('button',{name:'상담 신청',exact:true}).click();
   const inquiryReceipt=await inquiry.locator('.success strong').textContent();
+  expect(inquiryReceipt).toMatch(/^HT-A\d{14}-[0-9A-F]{16}$/);
   const {items:[inquiryLead]}=await (await page.request.get('/api/admin/leads?q='+inquiryReceipt)).json();
   const inquiryDetail=await (await page.request.get('/api/admin/leads/'+inquiryLead.id)).json();
   expect(inquiryDetail.email).toBe('test@example.com');

@@ -1,7 +1,7 @@
 import { digest, token, text, choice, money, invalid, ApiError, rateLimit } from './security.js';
 import { quote, product } from './catalog.js';
 import { settings, statuses } from './records.js';
-import { consultationEmailNotice, serviceTypes } from '../../shared/consultation.js';
+import { consultationEmailNotice, serviceReceiptCodes, serviceTypes } from '../../shared/consultation.js';
 
 function phoneNumber(value) {
   const phone=text(value,'전화번호',20).replace(/[\s-]/g,'');
@@ -25,8 +25,13 @@ function leadRequestKey(value) {
   if (!/^[a-z0-9-]{32,64}$/i.test(key)) throw invalid('요청 번호를 확인해 주세요.');
   return key;
 }
+export function newLeadReceipt(service,createdAt) {
+  const koreanTime=new Date(createdAt+9*3600000).toISOString().slice(0,19).replace(/\D/g,'');
+  const randomCode=token().slice(0,16).toUpperCase();
+  return 'HT-'+serviceReceiptCodes[service]+koreanTime+'-'+randomCode;
+}
 async function insertLead(db,{requestKey,service,name,phone,email='',birth='',details,status='접수완료',snapshot={},consent,createdAt}) {
-  const id=crypto.randomUUID(),receipt='HT-'+token().slice(0,16).toUpperCase();
+  const id=crypto.randomUUID(),receipt=newLeadReceipt(service,createdAt);
   await db.run(
     'INSERT INTO leads(id,receipt,request_key,service,name,phone,email,birth,details,status,notes,quote,consent,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
     [id,receipt,requestKey,service,name,phone,email,birth,details,status,'',JSON.stringify(snapshot),JSON.stringify(consent),createdAt]
