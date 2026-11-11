@@ -343,6 +343,33 @@ test('administrator changes the public banner and registers a phone with pricing
   await capacityDialog.getByRole('button',{name:'닫기',exact:true}).click();
   await registered.getByRole('button',{name:'삭제',exact:true}).click();
   await expect(capacityDialog.getByText('등록 확인 휴대폰 · 256GB · 1,200,000원 항목을 삭제합니다.',{exact:true})).toBeVisible();
+
+  await page.goto('/admin/colors');
+  const gallery=page.getByRole('region',{name:'휴대폰 색상 목록',exact:true});
+  const colorCards=gallery.getByRole('article');
+  const color=gallery.getByRole('article',{name:'등록 확인 휴대폰 · 블랙',exact:true});
+  const photo=gallery.getByRole('img',{name:'갤럭시 S26 · 기본색 사진',exact:true});
+  await expect(color.getByText('사진 없음',{exact:true})).toBeVisible();
+  await expect(photo).toHaveAttribute('src','/media/phone-0.svg');
+  await expect.poll(()=>photo.evaluate(image=>image.naturalWidth)).toBeGreaterThan(0);
+  await expect(page.getByText('관리 코드',{exact:true})).toHaveCount(0);
+  for(const width of [1280,390,320]) {
+    await page.setViewportSize({width,height:900});
+    const [first,second]=await colorCards.evaluateAll(cards=>cards.slice(0,2).map(card=>card.getBoundingClientRect().top));
+    expect(first).toBe(second);
+    expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+  }
+  await page.getByRole('searchbox',{name:'모델명·색상 검색',exact:true}).fill('등록 확인 휴대폰 블랙');
+  await expect(colorCards).toHaveCount(1);
+  await color.getByRole('button',{name:'수정',exact:true}).click();
+  const colorDialog=page.getByRole('dialog').filter({hasText:'색상·사진 수정'});
+  await expect(colorDialog.getByRole('combobox',{name:'휴대폰 모델',exact:true}).locator('option:checked')).toHaveText('등록 확인 휴대폰');
+  await colorDialog.getByRole('button',{name:'색상 이미지 보관함에서 선택',exact:true}).click();
+  await page.getByRole('button',{name:'기본 휴대폰 이미지 1 선택',exact:true}).click();
+  await colorDialog.getByRole('button',{name:'저장',exact:true}).click();
+  await expect(color.getByRole('img',{name:'등록 확인 휴대폰 · 블랙 사진',exact:true})).toHaveAttribute('src','/media/phone-0.svg');
+  await color.getByRole('button',{name:'삭제',exact:true}).click();
+  await expect(page.getByRole('dialog').getByText('등록 확인 휴대폰 · 블랙 항목을 삭제합니다.',{exact:true})).toBeVisible();
 });
 
 test('media library uses compact tiles and deletes uploads individually and in bulk',async({page})=>{

@@ -204,8 +204,8 @@ export async function handleApi(request,env,db) {
         const links=await db.all('SELECT * FROM product_categories');
         return json(rows.map(row=>({...row,categories:links.filter(link=>link.product_id===row.id).map(link=>link.category_id)})));
       }
-      if(action==='capacities') {
-        return json(await db.all('SELECT c.*, p.name AS product_name FROM capacities c LEFT JOIN products p ON p.id=c.product_id ORDER BY p.name, c.name, c.id LIMIT 2000'));
+      if(action==='capacities'||action==='colors') {
+        return json(await db.all('SELECT c.*, p.name AS product_name FROM '+action+' c LEFT JOIN products p ON p.id=c.product_id ORDER BY p.name, c.name, c.id LIMIT 2000'));
       }
       return json(await db.all('SELECT * FROM '+action+' ORDER BY id LIMIT 2000'));
     }

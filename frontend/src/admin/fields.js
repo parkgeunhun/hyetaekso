@@ -3,7 +3,7 @@ export const entities={
   manufacturers:{title:'제조사',fields:[['name','제조사 이름']]},
   categories:{title:'상품 카테고리',fields:[['name','카테고리 이름']]},
   capacities:{title:'용량·출고가',fields:[['product_id','휴대폰 모델','products'],['name','용량'],['price','출고가','number']]},
-  colors:{title:'색상·사진',fields:[['product_id','상품','products'],['name','색상'],['image','색상 이미지','picture']]},
+  colors:{title:'색상·사진',fields:[['product_id','휴대폰 모델','products'],['name','색상'],['image','색상 이미지','picture']]},
   carriers:{title:'통신사',fields:[['name','통신사 이름']]},
   plans:{title:'요금제',fields:[['carrier_id','통신사','carriers'],['name','요금제'],['fee','월정액','number'],['enabled','사용','check'],['source_key','외부 요금제 코드']]},
   offers:{title:'가격 조건',fields:[['capacity_id','용량','capacities'],['plan_id','요금제','plans'],['join_type','가입 유형',['기기변경','신규가입','번호이동']],['extra','추가 지원금','number'],['source_key','공개 조회 매핑 또는 피드 키']]},

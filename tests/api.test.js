@@ -202,6 +202,14 @@ async function scenario(db) {
   assert.equal(savedPhone.offers[0].storage,'256GB');
   assert.equal(savedPhone.offers[0].price,1200000);
   assert.equal(savedPhone.colors[0].name,'검증 색상');
+  const adminColors=await request('/admin/colors');
+  assert.equal(adminColors.status,200);
+  assert.equal(adminColors.data.length,1);
+  const [adminColor]=adminColors.data;
+  assert.equal(adminColor.product_id,registered.data.id);
+  assert.equal(adminColor.product_name,'일괄 등록 휴대폰');
+  assert.equal(adminColor.name,savedPhone.colors[0].name);
+  assert.equal(adminColor.image,savedPhone.colors[0].image);
   const savedAdminPhone=(await request('/admin/products')).data.find(item=>item.id===registered.data.id);
   assert.deepEqual(savedAdminPhone.categories,[category.id]);
   const listOffers=async()=> (await request('/admin/offers')).data.filter(item=>item.product_id===registered.data.id);
