@@ -2,21 +2,19 @@ import { useMemo,useState } from 'react';
 import { api } from '../services/api.js';
 import { useResource } from '../hooks/data.js';
 import { Modal,Status } from '../components/common.jsx';
-import { offerCode,offerEditLimit } from '../../../shared/offer-editor.js';
+import { offerEditLimit,offerTitle } from '../../../shared/offer-editor.js';
 import { blankFields,EditorFields } from './Editors.jsx';
-import { entities } from './fields.js';
+import { entities,recordTitle,won } from './fields.js';
 
 const fields=entities.offers.fields;
 const joins=fields.find(([key])=>key==='join_type')[2];
 const pageSize=20;
-const won=value=>Number(value).toLocaleString('ko-KR')+'원';
 const editable=row=>Object.fromEntries(fields.map(([key])=>[key,row[key]]));
 const compareLabels=(left,right)=>left.label.localeCompare(right.label,'ko');
 
 function OfferRow({row,draft,disabled,update,onDelete,capacities,plans}) {
   const values=draft??row;
-  const code=offerCode(row.id);
-  const title=[row.product_name,row.storage,row.carrier,row.plan,row.join_type].join(' · ');
+  const title=offerTitle(row);
   const price=capacities.find(item=>item.id===values.capacity_id)?.price??row.price;
   const plan=plans.find(item=>item.id===values.plan_id)??row;
   return <article className={'offer-row'+(draft?' offer-row-changed':'')} aria-label={title}>
@@ -24,11 +22,10 @@ function OfferRow({row,draft,disabled,update,onDelete,capacities,plans}) {
       <div><strong>{row.product_name} · {row.storage}</strong><p>{row.carrier} · {row.plan} · {row.join_type}</p></div>
       <div className="offer-row-tools">
         {draft&&<span className="offer-pending">수정됨</span>}
-        {code===row.id?<code>{code}</code>:<details className="offer-code"><summary>{code}</summary><code>{row.id}</code></details>}
         <button className="btn" type="button" disabled={disabled} onClick={onDelete}>삭제</button>
       </div>
     </header>
-    <fieldset className="offer-fields" disabled={disabled} aria-label={code+' 수정'}>
+    <fieldset className="offer-fields" disabled={disabled} aria-label={title+' 수정'}>
       <label>기기·용량<select required value={values.capacity_id} onChange={event=>update('capacity_id',event.target.value)}>
         {!capacities.some(item=>item.id===row.capacity_id)&&<option value={row.capacity_id}>{row.product_name} · {row.storage}</option>}
         {capacities.map(item=><option key={item.id} value={item.id}>{item.label}</option>)}
@@ -54,18 +51,14 @@ export default function OfferEditor({refs,onChanged}) {
   const [query,setQuery]=useState(''),[carrier,setCarrier]=useState(''),[page,setPage]=useState(0);
   const [create,setCreate]=useState(null),[remove,setRemove]=useState(null),[modalError,setModalError]=useState('');
   const [busy,setBusy]=useState(false),[result,setResult]=useState(null);
-  const options=useMemo(()=>{
-    const products=new Map(refs.products?.map(row=>[row.id,row.name]));
-    const carriers=new Map(refs.carriers?.map(row=>[row.id,row.name]));
-    return {
-      capacities:(refs.capacities??[]).map(row=>({...row,label:[products.get(row.product_id),row.name].filter(Boolean).join(' · ')})).sort(compareLabels),
-      plans:(refs.plans??[]).filter(row=>row.enabled).map(row=>({...row,label:[carriers.get(row.carrier_id),row.name].filter(Boolean).join(' · ')+' ('+won(row.fee)+')'})).sort(compareLabels)
-    };
-  },[refs]);
+  const options=useMemo(()=>({
+    capacities:(refs.capacities??[]).map(row=>({...row,label:recordTitle('capacities',row)})).sort(compareLabels),
+    plans:(refs.plans??[]).filter(row=>row.enabled).map(row=>({...row,label:recordTitle('plans',row)+' ('+won(row.fee)+')'})).sort(compareLabels)
+  }),[refs]);
   const rows=resource.data??[];
-  const search=query.trim().toLowerCase();
+  const terms=query.trim().toLowerCase().split(/\s+/);
   const visible=rows.filter(row=>(!carrier||row.carrier_id===carrier)&&
-    [row.product_name,row.storage,row.carrier,row.plan,row.join_type,row.source_key,row.id,offerCode(row.id)].join(' ').toLowerCase().includes(search));
+    terms.every(term=>(offerTitle(row)+' '+row.source_key+' '+row.id).toLowerCase().includes(term)));
   const pageCount=Math.max(1,Math.ceil(visible.length/pageSize));
   const currentPage=Math.min(page,pageCount-1);
   const pending=drafts.size;
@@ -122,7 +115,7 @@ export default function OfferEditor({refs,onChanged}) {
     </div>
     <form className="admin-panel offer-editor" noValidate onSubmit={save}>
       <div className="filters">
-        <label>가격 조건 검색<input type="search" value={query} placeholder="기기, 요금제, 가입 유형, 관리 코드" onChange={event=>{setQuery(event.target.value);setPage(0);}}/></label>
+        <label>가격 조건 검색<input type="search" value={query} placeholder="모델명, 통신사, 요금제, 가입 유형" onChange={event=>{setQuery(event.target.value);setPage(0);}}/></label>
         <label>통신사 필터<select value={carrier} onChange={event=>{setCarrier(event.target.value);setPage(0);}}>
           <option value="">전체 통신사</option>{refs.carriers?.map(row=><option key={row.id} value={row.id}>{row.name}</option>)}
         </select></label>
@@ -157,7 +150,7 @@ export default function OfferEditor({refs,onChanged}) {
       </form>
     </Modal>}
     {remove&&<Modal title="가격 조건 삭제" onClose={()=>{if(!busy)setRemove(null);}}>
-      <p>{remove.product_name} · {remove.storage} · {remove.carrier} · {remove.plan} · {remove.join_type}</p>
+      <p>{offerTitle(remove)}</p>
       <p>이 조건과 연결된 공통지원금 기록도 삭제됩니다.</p>
       {modalError&&<p className="message error" role="alert">{modalError}</p>}
       <button className="btn danger" disabled={busy} onClick={deleteRow}>삭제 확인</button>

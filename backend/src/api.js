@@ -5,7 +5,7 @@ import { listBanners } from './banner-text.js';
 import { ApiError, invalid, digest, token, matchesPassword, cookie, accountSession, requireOrigin, rateLimit, readJson, text, choice } from './security.js';
 import { isPublishedProductCover, listProducts, product, quote } from './catalog.js';
 import { definitions, saveRecord, settings, saveSettings } from './records.js';
-import { listAdminOffers,saveOfferChanges } from './offer-editor.js';
+import { listAdminOffers,listAdminSupports,saveOfferChanges } from './offer-editor.js';
 import { appearance, saveAppearance, resetAppearance } from './appearance.js';
 import { navigation, saveNavigation } from './navigation.js';
 import { registerPhone } from './phone-registration.js';
@@ -211,13 +211,15 @@ export async function handleApi(request,env,db) {
         return json(await db.all('SELECT * FROM content WHERE kind=? ORDER BY created_at DESC,id LIMIT 2000',[kind]));
       }
       if(action==='products') {
-        const rows=await db.all('SELECT * FROM products ORDER BY sort_order,name LIMIT 2000');
+        const rows=await db.all('SELECT p.*, m.name AS manufacturer FROM products p JOIN manufacturers m ON m.id=p.manufacturer_id ORDER BY p.sort_order,p.name LIMIT 2000');
         const links=await db.all('SELECT * FROM product_categories');
         return json(rows.map(row=>({...row,categories:links.filter(link=>link.product_id===row.id).map(link=>link.category_id)})));
       }
       if(action==='capacities'||action==='colors') {
         return json(await db.all('SELECT c.*, p.name AS product_name FROM '+action+' c LEFT JOIN products p ON p.id=c.product_id ORDER BY p.name, c.name, c.id LIMIT 2000'));
       }
+      if(action==='plans') return json(await db.all('SELECT p.*, c.name AS carrier FROM plans p JOIN carriers c ON c.id=p.carrier_id ORDER BY c.name,p.name,p.fee,p.id LIMIT 2000'));
+      if(action==='supports') return json(await listAdminSupports(db));
       return json(await db.all('SELECT * FROM '+action+' ORDER BY id LIMIT 2000'));
     }
     if(method==='POST'||(method==='PUT'&&id)) {

@@ -1,3 +1,5 @@
+import { offerTitle } from '../../../shared/offer-editor.js';
+
 export const entities={
   products:{title:'휴대폰 상품',fields:[['manufacturer_id','제조사','manufacturers'],['name','모델명'],['description','상품 설명','area'],['image','대표 이미지','picture'],['status','공개 상태',['draft','published']],['sort_order','표시 순서','number'],['sample','전시 예시','check'],['closed','상담 마감','check'],['categories','카테고리','multiple']]},
   manufacturers:{title:'제조사',fields:[['name','제조사 이름']]},
@@ -23,4 +25,11 @@ export const settingsFields=[
 ];
 export const leadStates=['접수완료','상담중','상담완료','취소'];
 export const optionLabels={draft:'비공개',published:'공개',image:'이미지',video:'동영상',cover:'잘라 채우기',contain:'전체 보기',fill:'늘려 맞추기',off:'끄기',subtle:'은은하게',standard:'기본',notice:'공지사항',faq:'FAQ',review:'이용후기',qna:'질문답변',rental:'렌탈',page:'일반 안내'};
-export const recordTitle=row=>row.name||row.title||row.source||row.receipt||row.id;
+export const phoneModel=row=>row.product_name||'모델명 확인 필요';
+export const won=value=>Number(value).toLocaleString('ko-KR')+'원';
+export function recordTitle(entity,row) {
+  if(entity==='capacities'||entity==='colors')return [phoneModel(row),row.name].join(' · ');
+  if(entity==='plans')return [row.carrier,row.name].filter(Boolean).join(' · ');
+  if(entity==='offers'||entity==='supports')return offerTitle(row);
+  return row.name||row.title||'이름 미등록';
+}

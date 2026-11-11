@@ -95,8 +95,6 @@
 .offer-row-heading p{margin:2px 0 0;font-size:.87rem;color:var(--muted)}
 .offer-row-tools{justify-content:flex-end;align-items:center;font-size:.8rem}
 .offer-row-tools .btn{min-height:32px;padding:4px 8px}
-.offer-code summary{cursor:pointer;font-family:monospace}
-.offer-code code,.offer-row-tools>code{overflow-wrap:anywhere}
 .offer-pending{font-weight:750;color:#774800}
 .offer-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,145px),1fr));align-items:start;gap:10px;margin:10px 0 0;padding:0;border:0}
 .offer-fields label{min-width:0;font-size:.87rem}

@@ -77,14 +77,19 @@ async function scenario(db) {
   const product=(await request('/admin/products','POST',{manufacturer_id:manufacturer.id,name:'검증 휴대폰',status:'published'})).data;
   const updated=await request('/admin/products/'+product.id,'PUT',{...product,name:'검증 휴대폰 수정'});
   assert.equal(updated.status,200);
+  assert.equal((await request('/admin/products')).data[0].manufacturer,'검증 제조사');
   assert.equal((await request('/products')).data.items[0].name,'검증 휴대폰 수정');
   const cap=await saveRecord(db,'capacities',{product_id:product.id,name:'256 GB',price:1000001});
   const capacities=await request('/admin/capacities');
   assert.equal(capacities.status,200);
   assert.deepEqual(capacities.data,[{...cap,product_name:'검증 휴대폰 수정'}]);
   const plan=await saveRecord(db,'plans',{carrier_id:carrier.id,name:'검증 요금제',fee:69001,enabled:1});
+  assert.equal((await request('/admin/plans')).data[0].carrier,'검증 통신사');
   const offer=await saveRecord(db,'offers',{capacity_id:cap.id,plan_id:plan.id,join_type:'번호이동',extra:180000});
   const manual=await saveRecord(db,'supports',{offer_id:offer.id,source:'검증',amount:310000,expires_at:Date.now()+86400000});
+  const [namedSupport]=(await request('/admin/supports')).data;
+  assert.deepEqual([namedSupport.product_name,namedSupport.storage,namedSupport.carrier,namedSupport.plan,namedSupport.join_type],
+    ['검증 휴대폰 수정','256GB','검증 통신사','검증 요금제','번호이동']);
   const feedId=crypto.randomUUID();
   await db.run('INSERT INTO supports(id,offer_id,mode,amount,source,updated_at,expires_at,signature) VALUES(?,?,?,?,?,?,?,?)',
     [feedId,offer.id,'feed',100000,'자동 갱신',manual.updated_at,manual.expires_at,manual.signature]);

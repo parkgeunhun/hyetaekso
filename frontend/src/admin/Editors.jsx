@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { api } from '../services/api.js';
 import { useResource } from '../hooks/data.js';
 import { Modal,Status } from '../components/common.jsx';
-import { entities,recordTitle,settingsFields,optionLabels } from './fields.js';
+import { entities,phoneModel,recordTitle,settingsFields,optionLabels,won } from './fields.js';
 import { boardTitles } from '../pages/content.js';
 import { isVideoUrl } from '../../../shared/media-library.js';
 import { MediaPicker } from './ImageLibrary.jsx';
@@ -19,12 +19,9 @@ function MediaField({label,value,update,type,category}) {
 }
 function ReferenceField({label,entity,value,update,refs}) {
   const records=refs[entity]||[];
-  return <label>{label}<select value={value??''} onChange={e=>update(e.target.value)} required><option value="">선택</option>{records.map(row=>{
-    const related=entity==='capacities'?refs.products?.find(p=>p.id===row.product_id)?.name:entity==='plans'?refs.carriers?.find(c=>c.id===row.carrier_id)?.name:null;
-    const cap=entity==='offers'?refs.capacities?.find(c=>c.id===row.capacity_id):null;
-    const offerLabel=cap?[refs.products?.find(p=>p.id===cap.product_id)?.name,cap.name,refs.plans?.find(p=>p.id===row.plan_id)?.name,row.join_type].filter(Boolean).join(' · '):null;
-    return <option key={row.id} value={row.id}>{offerLabel||[related,recordTitle(row)].filter(Boolean).join(' · ')}</option>;
-  })}</select></label>;
+  return <label>{label}<select value={value??''} onChange={e=>update(e.target.value)} required><option value="">선택</option>
+    {records.map(row=><option key={row.id} value={row.id}>{recordTitle(entity,row)}{entity==='plans'?' ('+won(row.fee)+')':''}</option>)}
+  </select></label>;
 }
 const retentionHint=<>
   개인정보 보호법과 개인정보 처리방침에 맞게 보관 일수를 설정해 주세요.
@@ -62,18 +59,21 @@ function recordFields(entity, fields, form) {
     return [field];
   });
 }
-const phoneModel=item=>item.product_name??'모델명 확인 필요';
-const capacityPrice=item=>Number(item.price).toLocaleString('ko-KR')+'원';
-const capacityTitle=item=>[phoneModel(item),item.name,capacityPrice(item)].join(' · ');
-const colorTitle=item=>[phoneModel(item),item.name].join(' · ');
+const recordColumns={
+  products:[['모델명',item=>item.name],['제조사',item=>item.manufacturer]],
+  capacities:[['휴대폰 모델',phoneModel],['용량',item=>item.name],['출고가',item=>won(item.price)]],
+  plans:[['통신사·요금제',item=>recordTitle('plans',item)],['월정액',item=>won(item.fee)]],
+  supports:[['휴대폰·요금제 조건',item=>recordTitle('supports',item)],['지원금',item=>won(item.amount)],['출처',item=>item.source]]
+};
 
 function ColorCard({item,onEdit,onDelete}) {
   const [failedImage,setFailedImage]=useState('');
-  return <article className="phone-color-card" aria-label={colorTitle(item)}>
+  const title=recordTitle('colors',item);
+  return <article className="phone-color-card" aria-label={title}>
     <div className="phone-color-info">
       <div className="phone-color-preview">
         {item.image&&failedImage!==item.image?
-          <img src={item.image} alt={colorTitle(item)+' 사진'} loading="lazy" referrerPolicy="no-referrer"
+          <img src={item.image} alt={title+' 사진'} loading="lazy" referrerPolicy="no-referrer"
             onError={()=>setFailedImage(item.image)}/>:
           <span>{item.image?'사진 불러오기 실패':'사진 없음'}</span>}
       </div>
@@ -91,17 +91,19 @@ export function Records({entity,refs,onChanged,kind,category,general,title:custo
   const queryString=kind?'?'+new URLSearchParams({kind,...(category?{category}:{}),...(general?{scope:'general'}:{})}):'';
   const resource=useResource('/admin/'+entity+queryString);
   const title=customTitle??(kind?boardTitles[kind]:definition.title);
-  const fields=definition.fields.filter(([key])=>!(kind&&key==='kind')&&!(category&&key==='category'));
+  const fields=definition.fields.filter(([key])=>!(kind&&key==='kind')&&!(category&&key==='category'))
+    .map(field=>category==='service:mobility'&&field[0]==='title'?['title','차량명 또는 안내 제목']:field);
   const mediaCategory=entity==='banners'?'banner':['products','colors'].includes(entity)?'phone':category==='service:mobility'?'car':'other';
   const [form,setForm]=useState(null),[query,setQuery]=useState(''),[busy,setBusy]=useState(false),[error,setError]=useState(''),[remove,setRemove]=useState(null);
   const isCapacity=entity==='capacities';
   const isColor=entity==='colors';
-  const searchLabel=isColor?'모델명·색상 검색':isCapacity?'모델명·용량·출고가 검색':'목록 검색';
+  const primaryLabel=fields.find(([key])=>key==='name'||key==='title')?.[1]??'항목';
+  const columns=recordColumns[entity]??[[primaryLabel,item=>recordTitle(entity,item)]];
+  const searchLabel=isColor?'모델명·색상 검색':columns.map(([label])=>label).join('·')+' 검색';
+  const itemTitle=item=>isCapacity?recordTitle(entity,item)+' · '+won(item.price):recordTitle(entity,item);
   const search=query.trim().toLowerCase();
   const records=(resource.data??[]).filter(item=>{
-    const values=Object.values(item);
-    if(isCapacity)values.push([phoneModel(item),item.name,capacityPrice(item)].join(' '));
-    if(isColor)values.push([phoneModel(item),item.name].join(' '));
+    const values=[...Object.values(item),itemTitle(item).replaceAll(' · ',' '),columns.map(([,read])=>read(item)).join(' ')];
     return values.some(value=>String(value).toLowerCase().includes(search));
   });
   function editItem(item) {
@@ -139,12 +141,10 @@ export function Records({entity,refs,onChanged,kind,category,general,title:custo
       </section>:<div className="table-scroll">
         <table>
           <thead><tr>
-            {isCapacity?<><th scope="col">휴대폰 모델</th><th scope="col">용량</th><th scope="col">출고가</th></>:<th scope="col">항목</th>}
-            <th scope="col">관리 코드</th><th scope="col">관리</th>
+            {columns.map(([label])=><th key={label} scope="col">{label}</th>)}<th scope="col">관리</th>
           </tr></thead>
           <tbody>{records.map(item=><tr key={item.id}>
-            {isCapacity?<><td>{phoneModel(item)}</td><td>{item.name}</td><td>{capacityPrice(item)}</td></>:<td>{recordTitle(item)}</td>}
-            <td>{item.id}</td>
+            {columns.map(([label,read])=><td key={label}>{read(item)}</td>)}
             <td>{item.mode==='feed'?<span>자동 갱신</span>:<>
               <button className="btn" onClick={()=>editItem(item)}>수정</button>{' '}
               <button className="btn" onClick={()=>confirmDelete(item)}>삭제</button>
@@ -158,7 +158,7 @@ export function Records({entity,refs,onChanged,kind,category,general,title:custo
       <EditorFields fields={recordFields(entity,fields,form)} form={form} setForm={setForm} refs={refs} mediaCategory={mediaCategory}/>
       {entity==='banners'&&Boolean(form.intro)&&<BannerTextEditor form={form} onChange={layers=>setForm(current=>({...current,layers}))}/>}
       {error&&<p role="alert" className="message error">{error}</p>}<button className="btn primary" disabled={busy}>저장</button></form></Modal>}
-    {remove&&<Modal title="항목 삭제" onClose={()=>{if(!busy)setRemove(null);}}><p>{isColor?colorTitle(remove):isCapacity?capacityTitle(remove):recordTitle(remove)} 항목을 삭제합니다.</p>{error&&<p role="alert" className="message error">{error}</p>}<button className="btn danger" onClick={deleteItem} disabled={busy}>삭제</button></Modal>}
+    {remove&&<Modal title="항목 삭제" onClose={()=>{if(!busy)setRemove(null);}}><p>{itemTitle(remove)} 항목을 삭제합니다.</p>{error&&<p role="alert" className="message error">{error}</p>}<button className="btn danger" onClick={deleteItem} disabled={busy}>삭제</button></Modal>}
   </>;
 }
 export function SiteSettings({only,title,subsection,onChanged}) {

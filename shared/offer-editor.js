@@ -1,7 +1,3 @@
 export const offerEditLimit=100;
 
-export function offerCode(id) {
-  return /^[\da-f]{8}(?:-[\da-f]{4}){3}-[\da-f]{12}$/i.test(id)
-    ? 'PC-'+id.slice(0,8).toUpperCase()
-    : id;
-}
+export const offerTitle=row=>[row.product_name,row.storage,row.carrier,row.plan,row.join_type].filter(Boolean).join(' · ')||'가격 조건';

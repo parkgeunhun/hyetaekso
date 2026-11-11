@@ -1,13 +1,20 @@
-import { offerEditLimit,offerCode } from '../../shared/offer-editor.js';
+import { offerEditLimit,offerTitle } from '../../shared/offer-editor.js';
 import { definitions,saveRecord } from './records.js';
 import { ApiError,invalid,text } from './security.js';
 
+const offerNames='cap.name AS storage, pr.name AS product_name, p.name AS plan, c.name AS carrier';
+const offerTables=`FROM offers o JOIN capacities cap ON cap.id=o.capacity_id JOIN products pr ON pr.id=cap.product_id
+  JOIN plans p ON p.id=o.plan_id JOIN carriers c ON c.id=p.carrier_id`;
+const namedOffers=`SELECT o.*, cap.product_id, cap.price, p.fee, p.enabled, p.carrier_id, ${offerNames} ${offerTables}`;
+
 export function listAdminOffers(db) {
-  return db.all(`SELECT o.*, cap.product_id, cap.name AS storage, cap.price, pr.name AS product_name,
-    p.name AS plan, p.fee, p.enabled, p.carrier_id, c.name AS carrier
-    FROM offers o JOIN capacities cap ON cap.id=o.capacity_id JOIN products pr ON pr.id=cap.product_id
-    JOIN plans p ON p.id=o.plan_id JOIN carriers c ON c.id=p.carrier_id
+  return db.all(`${namedOffers}
     ORDER BY pr.sort_order,pr.name,cap.price,cap.name,c.name,p.fee,p.name,o.join_type,o.id LIMIT 2000`);
+}
+
+export function listAdminSupports(db) {
+  return db.all(`SELECT s.*, o.join_type, ${offerNames} ${offerTables}
+    JOIN supports s ON s.offer_id=o.id ORDER BY pr.name,cap.price,cap.name,c.name,p.name,o.join_type,s.mode,s.id LIMIT 2000`);
 }
 
 const fields=Object.entries(definitions.offers);
@@ -25,14 +32,9 @@ export async function saveOfferChanges(db,changes) {
     throw invalid('한 번에 1~'+offerEditLimit+'개 가격 조건을 저장할 수 있습니다.');
   }
   const edits=changes.map(change=>{
-    const id=text(change?.id,'관리 코드',64);
-    if(!/^[\w-]+$/.test(id)) throw invalid('가격 조건의 관리 코드를 확인해 주세요.');
-    try {
-      return {id,before:values(change.before),after:values(change.after)};
-    } catch(error) {
-      if(error instanceof ApiError) throw invalid(offerCode(id)+' · '+error.message);
-      throw error;
-    }
+    const id=text(change?.id,'가격 조건',64);
+    if(!/^[\w-]+$/.test(id)) throw invalid('가격 조건을 확인해 주세요.');
+    return {id,before:values(change.before),after:values(change.after)};
   });
   const ids=[...new Set(edits.map(({id})=>id))].sort();
   if(ids.length!==edits.length) throw invalid('중복된 가격 조건이 있습니다.');
@@ -40,18 +42,19 @@ export async function saveOfferChanges(db,changes) {
   return db.transaction(async()=>{
     // Lock the existing rows before comparing snapshots or updating any condition.
     await db.run('UPDATE offers SET extra=extra WHERE id IN ('+placeholders+')',ids);
-    const current=new Map((await db.all('SELECT * FROM offers WHERE id IN ('+placeholders+')',ids)).map(row=>[row.id,row]));
+    const current=new Map((await db.all(namedOffers+' WHERE o.id IN ('+placeholders+')',ids)).map(row=>[row.id,row]));
     for(const {id,before,after} of edits) {
-      const row=current.get(id),code=offerCode(id);
-      if(!row) throw new ApiError(409,'offer_changed',code+' 조건이 삭제되었습니다. 목록을 새로 열어 확인해 주세요.');
+      const row=current.get(id);
+      if(!row) throw new ApiError(409,'offer_changed','수정 중인 가격 조건이 삭제되었습니다. 목록을 새로 열어 확인해 주세요.');
+      const title=offerTitle(row);
       if(matches(row,after)) continue;
-      if(!matches(row,before)) throw new ApiError(409,'offer_changed',code+' 조건이 다른 곳에서 변경되었습니다. 목록을 새로 열어 확인해 주세요.');
+      if(!matches(row,before)) throw new ApiError(409,'offer_changed',title+' 조건이 다른 곳에서 변경되었습니다. 목록을 새로 열어 확인해 주세요.');
       try {
         await saveRecord(db,'offers',after,id);
       } catch(error) {
-        if(error instanceof ApiError) throw new ApiError(error.status,error.code,code+' · '+error.message);
+        if(error instanceof ApiError) throw new ApiError(error.status,error.code,title+' · '+error.message);
         if(/duplicate|unique constraint/i.test(error.message??'')) {
-          throw new ApiError(409,'offer_duplicate',code+' · 같은 기기·용량·요금제·가입 유형의 조건이 이미 있습니다.');
+          throw new ApiError(409,'offer_duplicate',title+' · 같은 기기·용량·요금제·가입 유형의 조건이 이미 있습니다.');
         }
         throw error;
       }

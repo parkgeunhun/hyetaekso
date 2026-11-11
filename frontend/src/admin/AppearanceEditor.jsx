@@ -7,6 +7,8 @@ import { Art, Status } from '../components/common.jsx';
 import { EditorFields } from './Editors.jsx';
 import BannerTextEditor from './BannerTextEditor.jsx';
 
+const slotTitle=(slot,values)=>values?.title?.trim()||slot.label;
+
 function initialForm(slot, values) {
   return {
     ...Object.fromEntries((slot.fields ?? []).map(([key, , fallback]) => [key, fallback ?? ''])),
@@ -43,7 +45,7 @@ function SlotEditor({slot, saved, onChanged}) {
 
   return <form className="admin-panel form-stack" onSubmit={apply}>
     <fieldset className="editor-fieldset" disabled={busy}>
-      <legend>{slot.label}</legend>
+      <legend>{slotTitle(slot,saved)}</legend>
       {!slot.hero&&!slot.textOnly&&!form.image&&<div className="appearance-preview">
         <small>기본 이미지</small>
         {slot.image ? <img src={slot.image} alt="기본 이미지"/> : <Art tile={slot.tile}/>}
@@ -78,7 +80,7 @@ export default function AppearanceEditor({onChanged, page}) {
     </div>
     <div className="admin-panel filters">
       <label>편집할 위치<select aria-label="편집할 위치" value={slot.key} onChange={e=>setKey(e.target.value)}>
-        {slots.map(item=><option key={item.key} value={item.key}>{item.label}</option>)}
+        {slots.map(item=><option key={item.key} value={item.key}>{slotTitle(item,resource.data?.[item.key])}</option>)}
       </select></label>
     </div>
     {slot.key==='home-hero'&&<p className="message">기본 홈 배너는 활성 슬라이드가 없을 때 표시됩니다. 슬라이드 사진과 문구는 <Link to="/admin/banners">홈 배너 슬라이드</Link>에서 수정하세요.</p>}
