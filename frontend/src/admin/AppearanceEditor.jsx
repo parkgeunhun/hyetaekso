@@ -6,6 +6,7 @@ import { useResource } from '../hooks/data.js';
 import { Art, Status } from '../components/common.jsx';
 import { EditorFields } from './Editors.jsx';
 import BannerTextEditor from './BannerTextEditor.jsx';
+import CopyCode from './CopyCode.jsx';
 
 const slotTitle=(slot,values)=>values?.title?.trim()||slot.label;
 
@@ -82,6 +83,7 @@ export default function AppearanceEditor({onChanged, page}) {
       <label>편집할 위치<select aria-label="편집할 위치" value={slot.key} onChange={e=>setKey(e.target.value)}>
         {slots.map(item=><option key={item.key} value={item.key}>{slotTitle(item,resource.data?.[item.key])}</option>)}
       </select></label>
+      <CopyCode code={slot.key} label={slotTitle(slot,resource.data?.[slot.key])}/>
     </div>
     {slot.key==='home-hero'&&<p className="message">기본 홈 배너는 활성 슬라이드가 없을 때 표시됩니다. 슬라이드 사진과 문구는 <Link to="/admin/banners">홈 배너 슬라이드</Link>에서 수정하세요.</p>}
     <Status resource={resource}/>

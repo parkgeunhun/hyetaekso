@@ -88,6 +88,7 @@ test('consultations can be looked up, filtered, manually registered and selectiv
   const type=page.getByRole('combobox',{name:'상담 유형',exact:true});
   await expect(type).toHaveValue('');
   await expect(page.getByText(receipt,{exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:receipt+' 관리 코드 복사',exact:true})).toBeVisible();
   await expect(page.getByText(otherReceipt,{exact:true})).toBeVisible();
   await type.selectOption('렌탈');
   await expect(page.getByText(receipt,{exact:true})).toBeVisible();
@@ -177,6 +178,9 @@ test('direct links render catalog and gated administrator sign-in',async({page})
 });
 
 test('administrator reads and saves multiple price conditions directly in the list',async({page})=>{
+  await page.addInitScript(()=>{
+    Object.defineProperty(navigator,'clipboard',{value:{writeText:async code=>{window.copiedCode=code;}}});
+  });
   await page.setViewportSize({width:390,height:844});
   await page.goto('/admin/offers');
   await page.getByLabel('아이디').fill('browser-admin');
@@ -186,6 +190,9 @@ test('administrator reads and saves multiple price conditions directly in the li
   await search.fill('갤럭시 S26 SKT 기기변경');
   const skt=page.getByRole('article',{name:'갤럭시 S26 · 256GB · SKT · 5G 예시 요금제 · 기기변경',exact:true});
   await expect(skt.getByText('demo-0-skt-0',{exact:true})).toHaveCount(0);
+  await skt.getByRole('button',{name:/관리 코드 복사$/}).click();
+  await expect(skt.getByRole('status')).toHaveText('복사됨');
+  expect(await page.evaluate(()=>window.copiedCode)).toBe('demo-0-skt-0');
   await skt.getByLabel('추가 지원금(원)',{exact:true}).fill('175000');
   await search.fill('갤럭시 S26 KT 기기변경');
   const kt=page.getByRole('article',{name:'갤럭시 S26 · 256GB · KT · 5G 예시 요금제 · 기기변경',exact:true});
@@ -202,13 +209,21 @@ test('administrator reads and saves multiple price conditions directly in the li
 });
 
 test('admin lists and selectors show meaningful names for phones, support and mobility',async({page})=>{
+  await page.addInitScript(()=>{
+    Object.defineProperty(navigator,'clipboard',{value:{writeText:async code=>{window.copiedCode=code;}}});
+  });
   await page.goto('/admin/products');
   await page.getByLabel('아이디').fill('browser-admin');
   await page.getByLabel('비밀번호').fill(process.env.BROWSER_TEST_PASSWORD);
   await page.getByRole('button',{name:'로그인',exact:true}).click();
   const table=page.getByRole('table');
-  await expect(table.getByRole('columnheader')).toHaveText(['모델명','제조사','관리']);
+  await expect(table.getByRole('columnheader')).toHaveText(['모델명','제조사','관리','']);
+  await expect(table.getByRole('columnheader').last()).toHaveAccessibleName('관리 코드 복사');
   await expect(table.getByRole('cell',{name:'갤럭시 S26',exact:true})).toBeVisible();
+  const productRow=table.getByRole('row').filter({has:page.getByRole('cell',{name:'갤럭시 S26',exact:true})});
+  await productRow.getByRole('cell').last().getByRole('button',{name:'갤럭시 S26 관리 코드 복사',exact:true}).click();
+  expect(await page.evaluate(()=>window.copiedCode)).toBe('demo-0');
+  await expect(productRow.getByText('demo-0',{exact:true})).toHaveCount(0);
 
   await page.goto('/admin/plans');
   await expect(table.getByRole('cell',{name:'SKT · 5G 예시 요금제',exact:true})).toBeVisible();
@@ -220,18 +235,19 @@ test('admin lists and selectors show meaningful names for phones, support and mo
   await page.goto('/admin/supports');
   const condition='갤럭시 S26 · 256GB · SKT · 5G 예시 요금제 · 기기변경';
   const row=table.getByRole('row').filter({has:page.getByRole('cell',{name:condition,exact:true})});
-  await expect(row.getByRole('cell')).toHaveText([condition,'100,000원','검증 자료','수정 삭제']);
+  await expect(row.getByRole('cell')).toHaveText([condition,'100,000원','검증 자료','수정 삭제','']);
   await row.getByRole('button',{name:'수정',exact:true}).click();
   await expect(page.getByRole('dialog').getByRole('combobox',{name:'상품 조건',exact:true}).locator('option:checked')).toHaveText(condition);
 
   await page.goto('/admin/service-mobility');
-  await expect(table.getByRole('columnheader')).toHaveText(['차량명 또는 안내 제목','관리']);
+  await expect(table.getByRole('columnheader')).toHaveText(['차량명 또는 안내 제목','관리','']);
   await page.getByRole('button',{name:'+ 새 항목',exact:true}).click();
   const dialog=page.getByRole('dialog');
   await dialog.getByLabel('차량명 또는 안내 제목',{exact:true}).fill('쏘렌토 하이브리드');
   await dialog.getByLabel('본문',{exact:true}).fill('장기렌트 안내');
   await dialog.getByRole('button',{name:'저장',exact:true}).click();
   await expect(table.getByRole('cell',{name:'쏘렌토 하이브리드',exact:true})).toBeVisible();
+  await expect(table.getByRole('cell').last().getByRole('button',{name:'쏘렌토 하이브리드 관리 코드 복사',exact:true})).toBeVisible();
 
   expect((await page.request.put('/api/admin/appearance/mobility-card-1',{headers,data:{title:'쏘렌토 장기렌트'}})).status()).toBe(200);
   await page.goto('/admin/page-mobility');
@@ -351,6 +367,7 @@ test('administrator changes the public banner and registers a phone with pricing
   expect(upload.status()).toBe(201);
   const {url}=await upload.json();
   await expect(page.getByText('banner.png',{exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:'banner.png 관리 코드 복사',exact:true})).toBeVisible();
   await page.goto('/admin/page-home');
   await expect(page.locator('input[type="file"]')).toHaveCount(0);
   await expect(page.getByRole('button',{name:/보관함에서 선택/})).toHaveCount(1);
@@ -500,10 +517,10 @@ test('administrator changes the public banner and registers a phone with pricing
 
   await page.goto('/admin/capacities');
   const table=page.getByRole('table');
-  await expect(table.getByRole('columnheader')).toHaveText(['휴대폰 모델','용량','출고가','관리']);
+  await expect(table.getByRole('columnheader')).toHaveText(['휴대폰 모델','용량','출고가','관리','']);
   const registered=table.getByRole('row').filter({has:page.getByRole('cell',{name:'등록 확인 휴대폰',exact:true})});
   const otherPhone=table.getByRole('row').filter({has:page.getByRole('cell',{name:'갤럭시 S26+',exact:true})});
-  await expect(registered.getByRole('cell')).toHaveText(['등록 확인 휴대폰','256GB','1,200,000원','수정 삭제']);
+  await expect(registered.getByRole('cell')).toHaveText(['등록 확인 휴대폰','256GB','1,200,000원','수정 삭제','']);
   await expect(otherPhone.getByRole('cell',{name:'256GB',exact:true})).toBeVisible();
   await expect(otherPhone.getByRole('cell',{name:'1,300,000원',exact:true})).toBeVisible();
   await page.getByRole('searchbox',{name:'휴대폰 모델·용량·출고가 검색',exact:true}).fill('등록 확인 휴대폰 256GB');
@@ -521,6 +538,7 @@ test('administrator changes the public banner and registers a phone with pricing
   const color=gallery.getByRole('article',{name:'등록 확인 휴대폰 · 블랙',exact:true});
   const photo=gallery.getByRole('img',{name:'갤럭시 S26 · 기본색 사진',exact:true});
   await expect(color.getByText('사진 없음',{exact:true})).toBeVisible();
+  await expect(color.getByRole('button',{name:'등록 확인 휴대폰 · 블랙 관리 코드 복사',exact:true})).toBeVisible();
   await expect(photo).toHaveAttribute('src','/media/phone-0.svg');
   await expect.poll(()=>photo.evaluate(image=>image.naturalWidth)).toBeGreaterThan(0);
   await expect(page.getByText('관리 코드',{exact:true})).toHaveCount(0);

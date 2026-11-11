@@ -4,6 +4,7 @@ import { mediaAccept, mediaCategories } from '../../../shared/media-library.js';
 import { Modal, Status } from '../components/common.jsx';
 import { useResource } from '../hooks/data.js';
 import { api } from '../services/api.js';
+import CopyCode from './CopyCode.jsx';
 
 export function uploadMedia(file, category) {
   const params = new URLSearchParams({name:file.name.trim().slice(0,160)||'새 파일',category});
@@ -29,7 +30,8 @@ function Gallery({initialCategory,kind,onSelect,onEdit}) {
   const [deleteError,setDeleteError]=useState('');
   const resource=useResource('/admin/media?'+new URLSearchParams({category,kind:filterKind,q:query,page}));
   const change=setter=>event=>{setter(event.target.value);setSelected([]);setPage(0);setMessage('');};
-  const items=resource.data?.items??[];
+  const items=(resource.data?.items??[]).map(item=>item.label===item.id?
+    {...item,label:item.kind==='video'?'이름 없는 동영상':'이름 없는 이미지'}:item);
   const uploads=items.filter(item=>item.source==='upload');
   const selectedFiles=uploads.filter(item=>selected.includes(item.id));
   const allSelected=uploads.length>0&&selectedFiles.length===uploads.length;
@@ -86,7 +88,10 @@ function Gallery({initialCategory,kind,onSelect,onEdit}) {
             </label>}
           </div>
           <strong title={item.label}>{item.label}</strong>
-          <small>{item.inUse?'사용 중':item.source==='builtin'?'기본 제공':item.source==='reference'?'사이트 참조':mediaCategories[item.category]}</small>
+          <div className="media-card-meta">
+            <small>{item.inUse?'사용 중':item.source==='builtin'?'기본 제공':item.source==='reference'?'사이트 참조':mediaCategories[item.category]}</small>
+            {!onSelect&&item.source==='upload'&&<CopyCode code={item.id} label={item.label}/>}
+          </div>
           {onSelect?<button className="btn" type="button" aria-label={item.label+' 선택'} onClick={()=>onSelect(item.url)}>선택</button>:
             item.source==='upload'&&<div className="media-card-actions">
               <button className="btn" type="button" aria-label={item.label+' 이름·분류 수정'} onClick={()=>onEdit(item)}>수정</button>

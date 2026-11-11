@@ -5,6 +5,7 @@ import { Modal,Status } from '../components/common.jsx';
 import { offerEditLimit,offerTitle } from '../../../shared/offer-editor.js';
 import { blankFields,EditorFields } from './Editors.jsx';
 import { entities,recordTitle,won } from './fields.js';
+import CopyCode from './CopyCode.jsx';
 
 const fields=entities.offers.fields;
 const joins=fields.find(([key])=>key==='join_type')[2];
@@ -23,6 +24,7 @@ function OfferRow({row,draft,disabled,update,onDelete,capacities,plans}) {
       <div className="offer-row-tools">
         {draft&&<span className="offer-pending">수정됨</span>}
         <button className="btn" type="button" disabled={disabled} onClick={onDelete}>삭제</button>
+        <CopyCode code={row.id} label={title}/>
       </div>
     </header>
     <fieldset className="offer-fields" disabled={disabled} aria-label={title+' 수정'}>

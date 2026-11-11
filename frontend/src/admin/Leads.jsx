@@ -5,6 +5,7 @@ import { useResource } from '../hooks/data.js';
 import { serviceTypes } from '../pages/content.js';
 import { api } from '../services/api.js';
 import { leadStates } from './fields.js';
+import CopyCode,{ CopyCodeHeader } from './CopyCode.jsx';
 
 const formatTime = value => new Date(Number(value)).toLocaleString('ko-KR');
 
@@ -156,7 +157,7 @@ export default function Leads() {
         <thead><tr>
           <th><input ref={selectAll} type="checkbox" aria-label="이 페이지 상담 전체 선택" checked={allSelected}
             disabled={!items.length} onChange={event=>setSelection(event.target.checked?items.map(item=>item.id):[])}/></th>
-          <th>신청번호</th><th>이름</th><th>유형</th><th>상태</th><th>접수 시간</th><th>상세</th>
+          <th>신청번호</th><th>이름</th><th>유형</th><th>상태</th><th>접수 시간</th><th>상세</th><CopyCodeHeader/>
         </tr></thead>
         <tbody>{items.map(item=><tr key={item.id}>
           <td><input type="checkbox" aria-label={item.receipt+' 선택'} checked={selection.includes(item.id)} onChange={event=>{
@@ -165,6 +166,7 @@ export default function Leads() {
           }}/></td>
           <td>{item.receipt}</td><td>{item.name}</td><td>{item.service}</td><td>{item.status}</td><td>{formatTime(item.created_at)}</td>
           <td><button className="btn" type="button" onClick={()=>setDetailId(item.id)}>보기</button></td>
+          <td className="code-copy-cell"><CopyCode code={item.id} label={item.receipt}/></td>
         </tr>)}</tbody>
       </table></div>
       {resource.data&&!items.length&&<p className="message">해당 상담이 없습니다.</p>}

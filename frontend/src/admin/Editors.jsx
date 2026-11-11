@@ -9,6 +9,7 @@ import { isVideoUrl } from '../../../shared/media-library.js';
 import { MediaPicker } from './ImageLibrary.jsx';
 import BannerTextEditor from './BannerTextEditor.jsx';
 import DocumentEditor from './DocumentEditor.jsx';
+import CopyCode,{ CopyCodeHeader } from './CopyCode.jsx';
 
 function MediaField({label,value,update,type,category}) {
   const [picker,setPicker]=useState(false);
@@ -84,6 +85,7 @@ function ColorCard({item,onEdit,onDelete}) {
     <div className="media-card-actions">
       <button className="btn" type="button" onClick={onEdit}>수정</button>
       <button className="btn" type="button" onClick={onDelete}>삭제</button>
+      <CopyCode code={item.id} label={title}/>
     </div>
   </article>;
 }
@@ -143,7 +145,7 @@ export function Records({entity,refs,onChanged,kind,category,general,title:custo
       </section>:<div className="table-scroll">
         <table>
           <thead><tr>
-            {columns.map(([label])=><th key={label} scope="col">{label}</th>)}<th scope="col">관리</th>
+            {columns.map(([label])=><th key={label} scope="col">{label}</th>)}<th scope="col">관리</th><CopyCodeHeader/>
           </tr></thead>
           <tbody>{records.map(item=><tr key={item.id}>
             {columns.map(([label,read])=><td key={label}>{read(item)}</td>)}
@@ -151,6 +153,7 @@ export function Records({entity,refs,onChanged,kind,category,general,title:custo
               <button className="btn" onClick={()=>editItem(item)}>수정</button>{' '}
               <button className="btn" onClick={()=>confirmDelete(item)}>삭제</button>
             </>}</td>
+            <td className="code-copy-cell"><CopyCode code={item.id} label={itemTitle(item)}/></td>
           </tr>)}</tbody>
         </table>
       </div>}

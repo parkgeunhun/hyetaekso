@@ -12,6 +12,7 @@ import ImageLibrary from './ImageLibrary.jsx';
 import NavigationEditor from './NavigationEditor.jsx';
 import PhoneRegistration from './PhoneRegistration.jsx';
 import OfferEditor from './OfferEditor.jsx';
+import CopyCode from './CopyCode.jsx';
 import { boardTitles, menu } from '../pages/content.js';
 import { mediaCategories } from '../../../shared/media-library.js';
 import './admin.css';
@@ -175,7 +176,13 @@ function Sync() {
     <section className="admin-panel">
       <h2>최근 갱신 기록</h2>
       {message&&<p role="status">{message}</p>}<Status resource={resource}/>
-      <ul className="sync-list">{resource.data?.map(row=><li key={row.id}><strong>{syncLabels[row.status]??row.status}</strong> {time(row.created_at,'Asia/Seoul')}<p>{row.message}</p></li>)}</ul>
+      <ul className="sync-list">{resource.data?.map(row=><li key={row.id}>
+        <div className="sync-run-heading">
+          <span><strong>{syncLabels[row.status]??row.status}</strong> {time(row.created_at,'Asia/Seoul')}</span>
+          <CopyCode code={row.id} label={time(row.created_at,'Asia/Seoul')+' 지원금 갱신'}/>
+        </div>
+        <p>{row.message}</p>
+      </li>)}</ul>
     </section>
   </>;
 }

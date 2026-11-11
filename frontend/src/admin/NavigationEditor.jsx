@@ -4,6 +4,7 @@ import { Status } from '../components/common.jsx';
 import { useResource } from '../hooks/data.js';
 import { api } from '../services/api.js';
 import { defaultNavigation } from '../../../shared/navigation.js';
+import CopyCode,{ CopyCodeHeader } from './CopyCode.jsx';
 
 export default function NavigationEditor({onChanged}) {
   const resource = useResource('/admin/navigation');
@@ -47,7 +48,7 @@ export default function NavigationEditor({onChanged}) {
     {resource.data&&<form className="admin-panel form-stack" onSubmit={save}>
       <fieldset className="editor-fieldset" disabled={busy}>
         <legend>서비스 메뉴</legend>
-        <div className="table-scroll"><table><thead><tr><th>페이지</th><th>메뉴 이름</th><th>표시</th><th>순서</th></tr></thead><tbody>
+        <div className="table-scroll"><table><thead><tr><th>페이지</th><th>메뉴 이름</th><th>표시</th><th>순서</th><CopyCodeHeader/></tr></thead><tbody>
           {items.map((item,index)=>{
             const name=defaultNavigation.find(entry=>entry.slug===item.slug).label;
             return <tr key={item.slug}>
@@ -55,6 +56,7 @@ export default function NavigationEditor({onChanged}) {
               <td><input aria-label={name+' 메뉴 이름'} value={item.label} required maxLength={40} onChange={e=>update(item.slug,{label:e.target.value})}/></td>
               <td><label className="checkbox"><input type="checkbox" checked={item.visible} onChange={e=>update(item.slug,{visible:e.target.checked})}/>표시</label></td>
               <td><button className="btn" type="button" aria-label={name+' 위로'} disabled={index===0} onClick={()=>move(index,-1)}>↑</button>{' '}<button className="btn" type="button" aria-label={name+' 아래로'} disabled={index===items.length-1} onClick={()=>move(index,1)}>↓</button></td>
+              <td className="code-copy-cell"><CopyCode code={item.slug} label={item.label}/></td>
             </tr>;
           })}
         </tbody></table></div>

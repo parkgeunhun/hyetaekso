@@ -26,7 +26,7 @@
 .media-library-check{position:absolute;top:3px;left:3px;display:grid;place-items:center;width:26px;height:26px;border-radius:4px;background:#fff;cursor:pointer;box-shadow:0 1px 5px #0003}
 .media-library-check input{margin:0;width:17px;height:17px;cursor:pointer}
 .media-card-actions{display:flex;gap:4px}
-.media-card-actions .btn:last-child{color:#9b2530}
+.media-card-actions>button:last-of-type{color:#9b2530}
 .phone-color-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(225px, 100%), 1fr));
@@ -65,6 +65,27 @@
 .phone-color-label { display: grid; gap: 2px; min-width: 0; overflow-wrap: anywhere; }
 .phone-color-label span { color: var(--muted); font-size: 13px; }
 .phone-color-card .btn { min-height: 36px; padding: 5px 10px; font-size: 13px; }
+.phone-color-card .media-card-actions { flex-wrap: wrap; align-items: center; }
+.phone-color-card .media-card-actions>.code-copy,.offer-row-tools { margin-inline-start: auto; }
+.table-scroll .code-copy-cell { width: 1%; text-align: right; white-space: nowrap; }
+.code-copy { position: relative; display: inline-flex; flex: 0 0 auto; vertical-align: middle; }
+.admin-work .code-copy-button.btn { width: 34px; min-height: 34px; padding: 0; color: var(--muted); }
+.code-copy-feedback:not(:empty) {
+  position: absolute;
+  z-index: 3;
+  inset-inline-end: calc(100% + 5px);
+  top: 50%;
+  transform: translateY(-50%);
+  padding: 4px 8px;
+  border-radius: 5px;
+  background: #182332;
+  color: white;
+  font-size: 12px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.media-card-meta,.sync-run-heading { display: flex; justify-content: space-between; align-items: center; gap: 6px; }
+.media-card-meta .code-copy { margin-inline-start: auto; }
 @media (max-width: 550px) {
   .phone-color-grid { grid-template-columns: repeat(auto-fill, minmax(min(124px, 100%), 1fr)); }
   .phone-color-info { grid-template-columns: 1fr; gap: 7px; }
