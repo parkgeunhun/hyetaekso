@@ -2,7 +2,7 @@ export const entities={
   products:{title:'휴대폰 상품',fields:[['manufacturer_id','제조사','manufacturers'],['name','모델명'],['description','상품 설명','area'],['image','대표 이미지','picture'],['status','공개 상태',['draft','published']],['sort_order','표시 순서','number'],['sample','전시 예시','check'],['closed','상담 마감','check'],['categories','카테고리','multiple']]},
   manufacturers:{title:'제조사',fields:[['name','제조사 이름']]},
   categories:{title:'상품 카테고리',fields:[['name','카테고리 이름']]},
-  capacities:{title:'용량·출고가',fields:[['product_id','상품','products'],['name','용량'],['price','출고가','number']]},
+  capacities:{title:'용량·출고가',fields:[['product_id','휴대폰 모델','products'],['name','용량'],['price','출고가','number']]},
   colors:{title:'색상·사진',fields:[['product_id','상품','products'],['name','색상'],['image','색상 이미지','picture']]},
   carriers:{title:'통신사',fields:[['name','통신사 이름']]},
   plans:{title:'요금제',fields:[['carrier_id','통신사','carriers'],['name','요금제'],['fee','월정액','number'],['enabled','사용','check'],['source_key','외부 요금제 코드']]},

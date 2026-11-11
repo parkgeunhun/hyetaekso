@@ -67,6 +67,9 @@ async function scenario(db) {
   assert.equal(updated.status,200);
   assert.equal((await request('/products')).data.items[0].name,'검증 휴대폰 수정');
   const cap=await saveRecord(db,'capacities',{product_id:product.id,name:'256 GB',price:1000001});
+  const capacities=await request('/admin/capacities');
+  assert.equal(capacities.status,200);
+  assert.deepEqual(capacities.data,[{...cap,product_name:'검증 휴대폰 수정'}]);
   const plan=await saveRecord(db,'plans',{carrier_id:carrier.id,name:'검증 요금제',fee:69001,enabled:1});
   const offer=await saveRecord(db,'offers',{capacity_id:cap.id,plan_id:plan.id,join_type:'번호이동',extra:180000});
   const manual=await saveRecord(db,'supports',{offer_id:offer.id,source:'검증',amount:310000,expires_at:Date.now()+86400000});

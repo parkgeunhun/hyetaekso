@@ -326,6 +326,23 @@ test('administrator changes the public banner and registers a phone with pricing
   await page.getByRole('link',{name:'공개 상품 보기'}).click();
   await expect(page.getByRole('heading',{name:'등록 확인 휴대폰',exact:true})).toBeVisible();
   await expect(page.getByRole('button',{name:'256GB',exact:true})).toBeVisible();
+
+  await page.goto('/admin/capacities');
+  const table=page.getByRole('table');
+  await expect(table.getByRole('columnheader')).toHaveText(['휴대폰 모델','용량','출고가','관리 코드','관리']);
+  const registered=table.getByRole('row').filter({has:page.getByRole('cell',{name:'등록 확인 휴대폰',exact:true})});
+  const otherPhone=table.getByRole('row').filter({has:page.getByRole('cell',{name:'갤럭시 S26+',exact:true})});
+  await expect(registered.getByRole('cell')).toHaveText(['등록 확인 휴대폰','256GB','1,200,000원',/.+/,'수정 삭제']);
+  await expect(otherPhone.getByRole('cell',{name:'256GB',exact:true})).toBeVisible();
+  await expect(otherPhone.getByRole('cell',{name:'1,300,000원',exact:true})).toBeVisible();
+  await page.getByRole('searchbox',{name:'모델명·용량·출고가 검색',exact:true}).fill('등록 확인 휴대폰 256GB');
+  await expect(table.locator('tbody tr')).toHaveCount(1);
+  await registered.getByRole('button',{name:'수정',exact:true}).click();
+  const capacityDialog=page.getByRole('dialog');
+  await expect(capacityDialog.getByRole('combobox',{name:'휴대폰 모델',exact:true}).locator('option:checked')).toHaveText('등록 확인 휴대폰');
+  await capacityDialog.getByRole('button',{name:'닫기',exact:true}).click();
+  await registered.getByRole('button',{name:'삭제',exact:true}).click();
+  await expect(capacityDialog.getByText('등록 확인 휴대폰 · 256GB · 1,200,000원 항목을 삭제합니다.',{exact:true})).toBeVisible();
 });
 
 test('media library uses compact tiles and deletes uploads individually and in bulk',async({page})=>{
