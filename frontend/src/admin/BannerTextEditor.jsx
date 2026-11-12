@@ -87,31 +87,27 @@ export default function BannerTextEditor({hero,form,onChange,home=false}) {
     }
   };
   return <section className="banner-editor" aria-label="배너 편집기">
-    <div className="admin-head"><div><h2>배너 편집기</h2><p>글자나 아이콘을 추가하고 미리보기에서 원하는 위치로 끌어 옮기세요.</p></div></div>
-    <div className="banner-editor-toolbar">
-      <div className="actions" aria-label="요소 추가">
-        <button className="btn" type="button" onClick={addText} disabled={full}><Type size={17} aria-hidden="true"/>텍스트 추가</button>
-        <button className="btn" type="button" onClick={()=>setShowIcons(!showIcons)} aria-expanded={showIcons}
-          disabled={full&&!showIcons}><ImagePlus size={17} aria-hidden="true"/>아이콘 넣기</button>
-      </div>
-      <div className="actions" aria-label="미리보기 크기">
+    <div className="admin-head banner-editor-toolbar">
+      <div><h2>배너 편집기</h2><p>글자나 아이콘을 추가하고 미리보기에서 원하는 위치로 끌어 옮기세요.</p></div>
+      <div className="actions" role="group" aria-label="미리보기 크기">
         <button className="btn" type="button" aria-pressed={!narrow} onClick={()=>setNarrow(false)}><Monitor size={17} aria-hidden="true"/>넓게</button>
         <button className="btn" type="button" aria-pressed={narrow} onClick={()=>setNarrow(true)}><Smartphone size={17} aria-hidden="true"/>휴대폰</button>
       </div>
     </div>
-    {showIcons&&<div className="banner-icon-picker" role="group" aria-label="배너 아이콘">
-      {Object.entries(bannerIconLabels).map(([key,label])=><button type="button" key={key} disabled={full}
-        onClick={()=>addIcon(key)} aria-label={label+' 아이콘 추가'}><span><BannerIcon name={key}/></span>{label}</button>)}
-    </div>}
-    {full&&<p className="message">배너에 최대 {maxBannerLayers}개 요소를 넣을 수 있습니다.</p>}
     <div className="banner-editor-stage"><div className={'banner-editor-preview '+(narrow?'banner-editor-preview-narrow':'')}>
       {hero?<Hero data={{...hero,layers}} home={home} image={form.image} editor={editor}/>:<div className="banner banner-layered banner-editor-slide">
         <BannerMedia image={form.image} kind={form.kind} fit={form.fit} alt={form.alt}/>
         <BannerTextPlane className="banner-slide-plane" layers={layers} editor={editor}/>
       </div>}
     </div></div>
-    {selected&&<div className="banner-editor-controls">
-      <div className="actions">
+    <div className="banner-editor-controls">
+      <div className="actions" role="group" aria-label="요소 추가">
+        <button className="btn" type="button" onClick={addText} disabled={full}><Type size={17} aria-hidden="true"/>텍스트 추가</button>
+        <button className="btn" type="button" onClick={()=>setShowIcons(!showIcons)} aria-expanded={showIcons}
+          disabled={full&&!showIcons}><ImagePlus size={17} aria-hidden="true"/>아이콘 넣기</button>
+      </div>
+      {full&&<p className="message">배너에 최대 {maxBannerLayers}개 요소를 넣을 수 있습니다.</p>}
+      {selected&&<div className="actions">
         <label>편집할 요소<select aria-label="편집할 요소" value={selected.id} onChange={event=>setSelected(event.target.value)}>
           {layers.map((layer,index)=><option key={layer.id} value={layer.id}>{index+1}. {layer.type==='icon'?'아이콘':'텍스트'} · {layerName(layer)}</option>)}
         </select></label>
@@ -121,12 +117,16 @@ export default function BannerTextEditor({hero,form,onChange,home=false}) {
           <button className="btn" type="button" aria-label="선택 요소 복제" title="복제" disabled={full} onClick={duplicate}><Copy size={16} aria-hidden="true"/></button>
           <button className="btn" type="button" aria-label="선택 요소 삭제" title="삭제" onClick={remove}><Trash2 size={16} aria-hidden="true"/></button>
         </div>
-      </div>
-      {!isIcon&&<label>문구 내용 <small>{'\\r\\n 입력 시 줄바꿈 지원'}</small>
+      </div>}
+      {showIcons&&<div className="banner-icon-picker" role="group" aria-label="배너 아이콘">
+        {Object.entries(bannerIconLabels).map(([key,label])=><button type="button" key={key} disabled={full}
+          onClick={()=>addIcon(key)} aria-label={label+' 아이콘 추가'}><span><BannerIcon name={key}/></span>{label}</button>)}
+      </div>}
+      {selected&&!isIcon&&<label>문구 내용 <small>{'\\r\\n 입력 시 줄바꿈 지원'}</small>
         <textarea aria-label="문구 내용" rows="3" maxLength={maxBannerText} value={selected.text}
           onChange={event=>update(selected.id,{text:event.target.value})}/>
       </label>}
-      <div className="banner-editor-properties">
+      {selected&&<div className="banner-editor-properties">
         {isIcon&&<>
           <label>아이콘 모양<select value={selected.icon} onChange={event=>update(selected.id,{icon:event.target.value})}>
             {Object.entries(bannerIconLabels).map(([key,label])=><option key={key} value={key}>{label}</option>)}
@@ -147,8 +147,8 @@ export default function BannerTextEditor({hero,form,onChange,home=false}) {
           </select></label>
           <label className="checkbox"><input type="checkbox" checked={selected.bold} onChange={event=>update(selected.id,{bold:event.target.checked})}/>굵게</label>
         </>}
-      </div>
-    </div>}
+      </div>}
+    </div>
     {form.layers==null?<button className="btn" type="button" onClick={()=>onChange(defaults)}>이 배치 적용</button>:
       <button className="btn" type="button" onClick={()=>{setSelected('');onChange(null);}}>기본 배치로 복원</button>}
   </section>;

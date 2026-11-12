@@ -96,8 +96,8 @@
 .dialog.banner-editor-dialog{width:min(1000px,calc(100% - 26px))}
 .banner-editor{display:grid;min-width:0;gap:12px;padding:clamp(10px,2vw,18px);border:1px solid var(--line);border-radius:14px;background:#fff}
 .banner-editor .admin-head,.banner-editor h2{margin:0}
-.banner-editor-toolbar{display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px}
-.banner-editor-toolbar .btn,.banner-layer-actions .btn{min-height:38px;padding:7px 10px}
+.banner-editor .banner-editor-toolbar{align-items:center}
+.banner-editor-toolbar .btn,.banner-editor-controls .actions .btn{min-height:38px;padding:7px 10px}
 .banner-editor-stage{display:grid;min-width:0;padding:clamp(5px,1vw,14px);border-radius:10px;background:#eef0f3}
 .banner-editor-preview{width:100%;max-width:1000px;justify-self:center;container-type:inline-size;overflow:hidden;border:1px solid var(--line);border-radius:8px;background:#182332}
 .banner-editor-preview-narrow{max-width:390px}

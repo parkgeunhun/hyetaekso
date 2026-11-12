@@ -413,6 +413,21 @@ test('administrator changes the public banner and registers a phone with pricing
   await textEditor.getByRole('button',{name:'아이콘 넣기',exact:true}).click();
   const picker=textEditor.getByRole('group',{name:'배너 아이콘',exact:true});
   await expect(picker.getByRole('button')).toHaveCount(20);
+  for(const width of [1280,390]){
+    await page.setViewportSize({width,height:900});
+    const [preview,addText,addIcon,selector,icons,content]=await Promise.all([
+      textEditor.locator('.banner-editor-stage'),
+      textEditor.getByRole('button',{name:'텍스트 추가',exact:true}),
+      textEditor.getByRole('button',{name:'아이콘 넣기',exact:true}),
+      layerSelect,
+      picker,
+      textEditor.getByLabel('문구 내용',{exact:true})
+    ].map(locator=>locator.boundingBox()));
+    expect(Math.min(addText.y,addIcon.y)).toBeGreaterThanOrEqual(preview.y+preview.height);
+    expect(icons.y).toBeGreaterThanOrEqual(selector.y+selector.height);
+    expect(content.y).toBeGreaterThanOrEqual(icons.y+icons.height);
+  }
+  await page.setViewportSize({width:1280,height:900});
   await picker.getByRole('button',{name:'상담 아이콘 추가',exact:true}).click();
   await textEditor.getByRole('combobox',{name:'아이콘 배경',exact:true}).selectOption('rounded');
   await textEditor.getByLabel('배경 색상',{exact:true}).fill('#fff0cd');
