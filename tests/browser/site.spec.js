@@ -10,6 +10,11 @@ test('service pages and mobile menu work without horizontal overflow',async({pag
       await expect(page.getByRole('main').getByRole('heading',{level:1})).toBeVisible();
       await expect(page.locator('.hero').getByRole('link')).toHaveCount(0);
       await expect(page.getByRole('main').getByRole('heading',{name:/진행 절차|특별한 이유/})).toHaveCount(0);
+      if(route==='support'){
+        await expect(page.getByRole('navigation',{name:'고객 지원 바로가기'})).toHaveCount(0);
+        await expect(page.getByRole('heading',{name:'고객센터 문의 채널',exact:true})).toBeVisible();
+        await expect(page.getByRole('heading',{name:'자주 묻는 질문',exact:true})).toBeVisible();
+      }
       expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
     }
     if(width===1280){await page.goto('/');await page.screenshot({path:'.local/home-desktop.png',fullPage:true,animations:'disabled'});}

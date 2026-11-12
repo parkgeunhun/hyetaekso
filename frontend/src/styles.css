@@ -124,8 +124,6 @@ em{color:var(--accent-text);font-style:normal}
 .contact-card>svg{color:#ad6300;margin-bottom:10px}
 .contact-card h3{margin:0 0 8px}
 .contact-card p{margin:8px 0 0;color:var(--muted)}
-.support-links{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:32px}
-.support-links a{display:flex;align-items:center;gap:8px;padding:12px;border:1px solid var(--line);border-radius:7px;font-weight:650}
 .phone-showcase{position:relative;margin-top:20px;border:1px solid var(--line);border-radius:var(--radius);padding:18px 16px}
 .show-all{position:absolute;right:17px;top:22px;font-size:13px;font-weight:750;color:#8c5000}
 .rail-wrap{position:relative}

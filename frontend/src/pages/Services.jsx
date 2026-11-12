@@ -122,10 +122,7 @@ function SupportBody() {
       ['카카오톡 상담','Users',settings.kakao?<a className="btn" href={settings.kakao}>상담하기 ›</a>:'상담 채널 준비 중'],
       ['이메일 문의','ClipboardList',settings.email?<a href={'mailto:'+settings.email}>{settings.email}</a>:'이메일 안내 준비 중']].map(([title,icon,action,note])=><article className="service-card contact-card" key={title}><Icon name={icon} size={36}/><h3>{title}</h3><div>{action}</div>{note&&<p>{note}</p>}</article>)}</div></Section>
     <Section title="자주 묻는 질문" description="고객들이 자주 문의하시는 내용을 모았습니다." className="center"><div className="tabs">{topics.map(topic=><button key={topic} aria-pressed={tab===topic} onClick={()=>setTab(topic)}>{topic}</button>)}</div><Status resource={faq}/><div className="faq-list">{faq.data?.filter(item=>tab==='전체'||item.category===tab).map(item=><details key={item.id}><summary><b>Q</b>{item.title}</summary><p>{item.body}</p></details>)}</div>{faq.data&&!faq.data.some(item=>tab==='전체'||item.category===tab)&&<p className="message">이 분류의 등록된 질문이 없습니다.</p>}</Section>
-    <Callout title="고객의 소리에 귀 기울이겠습니다" service="고객의 소리"/>
-    <nav className="support-links wrap" aria-label="고객 지원 바로가기">{[['/lookup','상담 신청 내역 조회'],['/board/faq','자주 묻는 질문'],['/board/notice','공지사항'],['/board/review','이용후기'],['/board/qna','질문답변']].map(([path,label])=><Link to={path} key={path}><Icon name="ClipboardList" size={23}/>{label} ›</Link>)}
-      <ConsultationLink service="제휴·입점"><Icon name="ClipboardList" size={23}/>제휴·입점 문의 ›</ConsultationLink>
-    </nav></>;
+    <Callout title="고객의 소리에 귀 기울이겠습니다" service="고객의 소리"/></>;
 }
 export function Legal({kind}) {
   const {settings}=useSite();

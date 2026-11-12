@@ -7,7 +7,7 @@ export const menu=[
   ['mobility','모빌리티','장기렌트 · 리스 · 차량','CarFront'],
   ['business','사업자 서비스','사업장 통신 · 사무환경','BriefcaseBusiness'],
   ['franchise','가맹안내','가맹 · 창업 · 제휴','Handshake'],
-  ['support','고객센터','FAQ · 문의 · 상담 조회','Headset'],
+  ['support','고객센터','FAQ · 전화 · 온라인 문의','Headset'],
   ['insurance','보험','필요한 보장을 알아보세요','ShieldCheck']
 ];
 export const pages={
