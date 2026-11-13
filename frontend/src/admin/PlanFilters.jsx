@@ -1,3 +1,5 @@
+import {useLayoutEffect,useRef} from 'react';
+
 const defaults={q:'',carrier:'',minFee:'',maxFee:'',enabled:'',sort:'carrier'};
 const sorts=['carrier','name','fee-asc','fee-desc'];
 const amount=value=>/^\d+$/.test(value)&&Number.isSafeInteger(Number(value))?value:'';
@@ -32,18 +34,20 @@ export function filterPlans(rows,filters) {
   });
 }
 
-export default function PlanFilters({filters,setParams,carriers=[],rows,count,loaded}) {
+export default function PlanFilters({filters,params,setParams,carriers=[],rows,count,loaded}) {
+  const latestParams=useRef(params);
+  useLayoutEffect(()=>{latestParams.current=params;},[params]);
   const active=Object.entries(defaults).some(([key,value])=>filters[key]!==value);
   const options=new Map(carriers.map(row=>[row.id,row.name]));
   for(const row of rows)if(row.carrier_id&&!options.has(row.carrier_id))options.set(row.carrier_id,row.carrier||'통신사 확인 필요');
   function update(patch) {
-    setParams(prior=>{
-      const next=new URLSearchParams(prior);
-      for(const [key,value] of Object.entries(patch)) {
-        if(value===defaults[key])next.delete(key);else next.set(key,value);
-      }
-      return next;
-    },{replace:true});
+    // A second input can arrive before the router has rendered the preceding URL.
+    const next=new URLSearchParams(latestParams.current);
+    for(const [key,value] of Object.entries(patch)) {
+      if(value===defaults[key])next.delete(key);else next.set(key,value);
+    }
+    latestParams.current=next;
+    setParams(next,{replace:true});
   }
   const invalid=invalidPlanRange(filters);
   return <section className="plan-filters" aria-label="요금제 필터">

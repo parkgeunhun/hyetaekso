@@ -141,7 +141,7 @@ export function Records({entity,refs,onChanged,kind,category,general,title:custo
   }
   return <><div className="admin-head"><div><h1>{title}</h1><p>등록된 항목을 검색하고 변경할 수 있습니다.</p></div>{entity==='products'?<Link className="btn primary" to="/admin/phone-registration">휴대폰 등록</Link>:<button className="btn primary" onClick={()=>{setError('');setForm(blankFields(fields));}}>+ 새 항목</button>}</div>
     <div className="admin-panel">
-      {isPlan?<PlanFilters filters={planFilters} setParams={setParams} carriers={refs?.carriers} rows={resource.data??[]} count={records.length} loaded={Boolean(resource.data)}/>:<label>{searchLabel}<input type="search" value={query} onChange={e=>setQuery(e.target.value)}/></label>}
+      {isPlan?<PlanFilters filters={planFilters} params={params} setParams={setParams} carriers={refs?.carriers} rows={resource.data??[]} count={records.length} loaded={Boolean(resource.data)}/>:<label>{searchLabel}<input type="search" value={query} onChange={e=>setQuery(e.target.value)}/></label>}
       <Status resource={resource}/>
       {isColor?<section className="phone-color-grid" aria-label="휴대폰 색상 목록">
         {records.map(item=><ColorCard key={item.id} item={item} onEdit={()=>editItem(item)} onDelete={()=>confirmDelete(item)}/>)}

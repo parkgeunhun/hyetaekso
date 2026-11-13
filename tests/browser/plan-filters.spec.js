@@ -56,6 +56,16 @@ test('plan filters combine carrier, fee bounds, status and names and survive edi
     await expect(page.getByText('조건에 맞는 요금제가 없습니다. 필터를 변경하거나 초기화해 주세요.',{exact:true})).toBeVisible();
     await reset.click();await search.fill(name);
     await expect(rows).toHaveCount(4);
+    await state.selectOption('0');await expect(rows).toHaveCount(1);
+    await filters.evaluate((section,query)=>{
+      const input=section.querySelector('input[type="search"]');
+      section.querySelector('button').click();
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(input,query);
+      input.dispatchEvent(new Event('input',{bubbles:true}));
+    },name+' 기본');
+    await expect(state).toHaveValue('');await expect(search).toHaveValue(name+' 기본');
+    await expect(rows).toHaveCount(1);await expect(rows).toContainText('39,000원');
+    await search.fill(name);await expect(rows).toHaveCount(4);
     for(const width of [1280,820,390,320]){
       await page.setViewportSize({width,height:900});
       await expect(filters).toBeVisible();
