@@ -12,7 +12,7 @@ export function officialEndpoint(key,value) {
 }
 const codes={'신규가입':'11','번호이동':'20','기기변경':'31'};
 const carriers={SKT:'SKT',KT:'KT','LGU+':'LGU'};
-const carrierCode=name=>carriers[name.replace(/\s+/g,'').toUpperCase()];
+export const carrierCode=name=>carriers[String(name).replace(/\s+/g,'').toUpperCase()];
 const identifier=/^[A-Za-z0-9_+.-]{1,100}$/;
 const integer=(value,max=100000000)=>{
   if(!['string','number'].includes(typeof value)||!/^\d{1,9}$/.test(String(value))||+value>max)throw new Error('금액 형식 불일치');
@@ -31,7 +31,7 @@ export function officialRequest(row,config={}) {
   const [source,model,network,maker]=parts;
   const plan=row.plan_source;
   if(!identifier.test(model??'')||!identifier.test(plan??'')||!codes[row.join_type])throw new Error('단말·요금제 연결 코드 누락');
-  if(source==='skt'&&parts.length===3&&row.carrier==='SKT'&&['5G','PHONE'].includes(network)) {
+  if(source==='skt'&&parts.length===3&&carrierCode(row.carrier)==='SKT'&&['5G','PHONE'].includes(network)) {
     const url=officialEndpoint('skt_notice',config.skt_notice);
     url.search=new URLSearchParams({modelNwType:network,saleMonth:'24',prodId:plan,saleYn:'N',order:'DISCOUNT',scrbTypCd:codes[row.join_type],dcMthdCd:'10'});
     return {source,model,plan,network,url:String(url)};
@@ -55,6 +55,7 @@ export function parseOfficial(row,target,raw,now) {
   }
   const result=JSON.parse(raw);
   const info=result?.[0]?.priceCompareInfo;
+  if(!info)throw new Error('공개 자료에 해당 단말·요금제의 지원금이 없습니다. 다른 요금제를 선택하거나 수동 지원금을 입력해 주세요.');
   if(info?.dan_Company!==target.carrier||info?.productName!==target.model||info?.dan_Service!==target.network||info?.dan_Plan_Code!==target.plan||capacity(info?.used_Phone_Capacity)!==row.storage)throw new Error('스마트초이스 단말 조건 불일치');
   if(integer(info.planMonthVat)!==row.fee||integer(info.factoryPrice)!==row.price)throw new Error('스마트초이스 요금·출고가 불일치');
   const base=integer(info.dan_SupportMoney,row.price),transfer=integer(info.conv_SupportMoney,row.price-base);

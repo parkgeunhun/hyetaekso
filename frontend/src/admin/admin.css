@@ -85,6 +85,7 @@
   pointer-events: none;
 }
 .media-card-meta,.sync-run-heading { display: flex; justify-content: space-between; align-items: center; gap: 6px; }
+.support-setup fieldset{border:0;padding:0;margin:0;min-width:0}.support-preview{margin-top:18px;border-top:1px solid var(--line);padding-top:14px}.support-preview small{display:block;color:var(--muted);margin-bottom:8px}.support-preview .btn{margin-top:12px}.sync-issues{margin:10px 0}.sync-issues li{margin:12px 0;overflow-wrap:anywhere}.sync-issues p{margin:4px 0}.support-setup .settings-grid label{min-width:0}.support-setup select{width:100%;max-width:100%}
 .media-card-meta .code-copy { margin-inline-start: auto; }
 @media (max-width: 550px) {
   .phone-color-grid { grid-template-columns: repeat(auto-fill, minmax(min(124px, 100%), 1fr)); }

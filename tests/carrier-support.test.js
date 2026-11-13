@@ -42,7 +42,10 @@ test('reports missing mappings and plan codes without requesting public prices',
     await saveRecord(db,'offers',{capacity_id:cap.id,plan_id:plan.id,join_type:'기기변경'});
     await saveRecord(db,'offers',{capacity_id:cap.id,plan_id:plan.id,join_type:'번호이동',source_key:'skt:A543:5G'});
     await saveRecord(db,'offers',{capacity_id:cap.id,plan_id:plan.id,join_type:'신규가입',source_key:'custom'});
-    assert.deepEqual(await supportSyncStatus(db,{}),{total:3,ready:0,unlinked:1,missingPlan:1,invalidMapping:0,missingFeed:1});
+    const {issues,...summary}=await supportSyncStatus(db,{});
+    assert.deepEqual(summary,{total:3,ready:0,unlinked:1,missingPlan:1,invalidMapping:0,missingFeed:1,samples:0,closed:0});
+    assert.equal(issues.length,3);
+    assert.ok(issues.every(item=>item.product==='테스트 단말'&&item.message));
     let requested=false;
     const result=await syncSupports(db,{},()=>{requested=true;});
     assert.equal(requested,false);

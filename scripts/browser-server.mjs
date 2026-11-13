@@ -6,6 +6,7 @@ import {sqlite,seedDemo} from './local-db.mjs';
 import {handleApi} from '../backend/src/api.js';
 import {matchesPassword,passwordHash} from '../backend/src/security.js';
 import {localMedia} from './local-media.mjs';
+import {supportFetcher} from '../tests/fixtures/support-source.js';
 
 const previewBuild=process.env.HYETAEKSO_PREVIEW_BUILD;
 const port=previewBuild?4174:5175;
@@ -37,7 +38,7 @@ const server=createServer(async(incoming,outgoing)=>{
         try {
           const options={method:incoming.method,headers:incoming.headers};
           if(!['GET','HEAD'].includes(options.method))Object.assign(options,{body:Readable.toWeb(incoming),duplex:'half'});
-          const response=await handleApi(new Request(url,options),{APP_ORIGIN:origin,LOCAL_DEV:true,MEDIA},db);
+          const response=await handleApi(new Request(url,options),{APP_ORIGIN:origin,LOCAL_DEV:true,MEDIA},db,previewBuild?{}:{fetch:supportFetcher()});
           outgoing.writeHead(response.status,Object.fromEntries(response.headers));
           outgoing.end(Buffer.from(await response.arrayBuffer()));
         } catch {outgoing.writeHead(500).end();}

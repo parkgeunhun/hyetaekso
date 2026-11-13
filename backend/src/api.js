@@ -11,7 +11,8 @@ import { appearance, saveAppearance, resetAppearance } from './appearance.js';
 import { navigation, saveNavigation } from './navigation.js';
 import { registerPhone } from './phone-registration.js';
 import { createManualLead, deleteLeads, lookupLead, submitLead, updateLead } from './leads.js';
-import { supportSyncStatus, syncSupports } from './sync.js';
+import { supportSyncStatus, syncSupports, syncHistory } from './sync.js';
+import {supportCatalog,previewSupport,importSupport} from './support-setup.js';
 import { koreaDay, recentPageViews, recordPageView } from './page-views.js';
 import { publicCompanyInfo, publicSiteSettings } from '../../shared/company-documents.js';
 
@@ -60,7 +61,7 @@ async function media(request,store,params) {
   await store.put(key,bytes,{httpMetadata:{contentType},library});
   return json({url:'/api/media/'+key},201);
 }
-export async function handleApi(request,env,db) {
+export async function handleApi(request,env,db,dependencies={}) {
   const {origin,pathname,searchParams}=new URL(request.url),method=request.method;
   const [,prefix,area,action,id,extra]=pathname.split('/');
   try {
@@ -155,8 +156,11 @@ export async function handleApi(request,env,db) {
     }
     if(action==='sync') {
       if(method==='GET'&&id==='status')return json(await supportSyncStatus(db,env));
-      if(method==='GET'&&!id)return json(await db.all('SELECT * FROM sync_runs ORDER BY created_at DESC LIMIT 30'));
-      if(method==='POST'&&!id)return json(await syncSupports(db,env));
+      if(method==='GET'&&id==='catalog')return json(await supportCatalog(db,Object.fromEntries(searchParams),dependencies.fetch));
+      if(method==='POST'&&id==='preview')return json(await previewSupport(db,await body(request),dependencies.fetch));
+      if(method==='POST'&&id==='connect')return json(await importSupport(db,await body(request),dependencies.fetch),201);
+      if(method==='GET'&&!id)return json(await syncHistory(db));
+      if(method==='POST'&&!id)return json(await syncSupports(db,env,dependencies.fetch));
     }
     if(action==='leads') {
       if(method==='POST'&&!id)return json(await createManualLead(db,await body(request,20000),session.username),201);

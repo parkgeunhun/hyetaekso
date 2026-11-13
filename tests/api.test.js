@@ -11,6 +11,7 @@ import { koreaDay, recentPageViews, recordPageView } from '../backend/src/page-v
 import { newLeadReceipt } from '../backend/src/leads.js';
 import { serviceReceiptCodes, serviceTypes } from '../shared/consultation.js';
 import { visitorScenario } from './public-access-scenario.js';
+import { supportSetupScenario } from './support-setup-scenario.js';
 
 const origin='http://127.0.0.1:5173',env={APP_ORIGIN:origin,LOCAL_DEV:true};
 async function scenario(db) {
@@ -361,5 +362,5 @@ test('guests can browse, calculate and request consultation while unpublished da
 
 test('MySQL-compatible database API and guest shopping workflow',{skip:!process.env.MYSQL_TEST_URL},async()=>{
   const db=await connectMysql(process.env.MYSQL_TEST_URL);
-  try {await applySchema(db);await scenario(db);await visitorScenario(db);}finally{await db.close();}
+  try {await applySchema(db);await scenario(db);await visitorScenario(db);await supportSetupScenario(db);}finally{await db.close();}
 });

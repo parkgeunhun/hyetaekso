@@ -1,0 +1,5 @@
+CREATE TABLE IF NOT EXISTS sync_run_details (
+ run_id VARCHAR(64) PRIMARY KEY,
+ value LONGTEXT NOT NULL,
+ FOREIGN KEY(run_id) REFERENCES sync_runs(id) ON DELETE CASCADE
+);

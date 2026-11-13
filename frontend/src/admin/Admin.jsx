@@ -13,6 +13,7 @@ import NavigationEditor from './NavigationEditor.jsx';
 import PhoneRegistration from './PhoneRegistration.jsx';
 import OfferEditor from './OfferEditor.jsx';
 import CopyCode from './CopyCode.jsx';
+import SupportSetup from './SupportSetup.jsx';
 import { boardTitles, menu } from '../pages/content.js';
 import { mediaCategories } from '../../../shared/media-library.js';
 import './admin.css';
@@ -74,7 +75,7 @@ function SidebarItem({item,isActive,onNavigate}) {
   return <Link to={path} className={active?'active':undefined} aria-current={active?'page':undefined} onClick={onNavigate}>{item.label}</Link>;
 }
 const time=(value,timeZone)=>value?new Date(Number(value)).toLocaleString('ko-KR',{timeZone}):'기록 없음';
-const syncLabels={unconfigured:'연결 설정 필요',success:'갱신 완료',partial:'일부 갱신',empty:'일치 조건 없음',failed:'갱신 실패'};
+const syncLabels={waiting:'실제 상품 대기',unconfigured:'연결 설정 필요',success:'갱신 완료',partial:'일부 갱신',empty:'일치 조건 없음',failed:'갱신 실패'};
 function Login({onLogin,logo}) {
   const [error,setError]=useState(''),[busy,setBusy]=useState(false);
   async function submit(event) {
@@ -143,7 +144,7 @@ function Dashboard() {
     <div className="admin-panels"><section className="admin-panel"><h2>오늘 확인할 일</h2><p>처리 대기 상담 {count('접수완료')}건</p><Link to="/admin/leads">상담 목록 보기 ›</Link></section><section className="admin-panel"><h2>지원금 갱신</h2><p>{data.sync?.message??'지원금 갱신 기록이 없습니다.'}</p><Link to="/admin/sync">실행 기록 보기 ›</Link></section></div></>}
   </>;
 }
-function Sync() {
+function Sync({refs,onChanged}) {
   const resource=useResource('/admin/sync'),[busy,setBusy]=useState(false),[message,setMessage]=useState('');
   const status=useResource('/admin/sync/status'),summary=status.data;
   async function run() {
@@ -157,13 +158,16 @@ function Sync() {
       <p>매일 오전 9시(한국시간)에 연결된 가격 조건을 갱신합니다. 유효한 수동 지원금을 우선 적용합니다.</p>
       <Status resource={status}/>
       {summary&&<>
-        <p className="message">활성 가격 조건 {summary.total}개 중 자동 갱신 가능 {summary.ready}개</p>
+        <p className="message">실제 가격 조건 {summary.total}개 중 자동 갱신 가능 {summary.ready}개</p>
+        {(summary.samples>0||summary.closed>0)&&<p>전시 예시 {summary.samples}개 · 상담 마감 {summary.closed}개 조건은 자동 갱신에서 제외됩니다.</p>}
+        {summary.total===0&&<p>아래에서 실제 휴대폰과 요금제를 연결하면 자동 갱신이 시작됩니다.</p>}
         <ul className="sync-list">
           {summary.unlinked>0&&<li>공개 조회 매핑 없음 {summary.unlinked}개. <Link to="/admin/offers">가격 조건 열기</Link></li>}
           {summary.missingPlan>0&&<li>외부 요금제 코드 없음 {summary.missingPlan}개. <Link to="/admin/plans">요금제 관리 열기</Link></li>}
           {summary.invalidMapping>0&&<li>통신사 또는 매핑 형식 확인 필요 {summary.invalidMapping}개</li>}
           {summary.missingFeed>0&&<li>별도 피드 연결 필요 {summary.missingFeed}개</li>}
         </ul>
+        <SyncIssues issues={summary.issues}/>
       </>}
       <details><summary>공개 조회 연결 방법</summary>
         <ol>
@@ -173,6 +177,7 @@ function Sync() {
         <p>통신사, 용량, 출고가와 월정액이 공개 자료와 일치하는 조건만 반영됩니다. 예시 상품은 실제 단말과 요금제로 등록한 뒤 연결하세요.</p>
       </details>
     </section>
+    <SupportSetup products={refs.products} onConnected={()=>{resource.retry();status.retry();onChanged();}}/>
     <section className="admin-panel">
       <h2>최근 갱신 기록</h2>
       {message&&<p role="status">{message}</p>}<Status resource={resource}/>
@@ -182,9 +187,16 @@ function Sync() {
           <CopyCode code={row.id} label={time(row.created_at,'Asia/Seoul')+' 지원금 갱신'}/>
         </div>
         <p>{row.message}</p>
+        <SyncIssues issues={row.issues}/>
       </li>)}</ul>
     </section>
   </>;
+}
+function SyncIssues({issues=[]}) {
+  if(!issues.length)return null;
+  return <details className="sync-issues"><summary>미반영 조건과 이유 보기 ({issues.length}개{issues.length===100?'까지':''})</summary>
+    <ul>{issues.map((item,index)=><li key={item.offerId+'-'+index}><strong>{[item.product,item.storage,item.carrier,item.plan,item.join].filter(Boolean).join(' · ')}</strong><p>{item.message}</p></li>)}</ul>
+  </details>;
 }
 function Workspace({user,logout,site}) {
   const {section='dashboard'}=useParams(),[refs,setRefs]=useState({}),[error,setError]=useState(''),[nav,setNav]=useState(false);
@@ -218,7 +230,7 @@ function Workspace({user,logout,site}) {
       {Object.hasOwn(settingSections,section)&&<SiteSettings key={section} only={settingSections[section]} title={titles[section]} onChanged={site.retry}/>}
       {section==='excel'&&<Excel/>}
       {section==='leads'&&<Leads/>}
-      {section==='sync'&&<Sync/>}
+      {section==='sync'&&<Sync refs={refs} onChanged={refresh}/>}
       {section==='offers'&&<OfferEditor refs={refs} onChanged={refresh}/>}
       {section!=='offers'&&Object.hasOwn(entities,section)&&<Records key={section} entity={section} refs={refs} onChanged={section==='banners'?site.retry:refresh}/>}
       {section==='banners'&&<SiteSettings only={bannerSettings} title="슬라이드 재생 설정" subsection onChanged={site.retry}/>}

@@ -16,9 +16,9 @@ export function calculate(row,mode='support',months=24) {
   if (![24,30,36].includes(months)) throw invalid('할부 기간을 확인해 주세요.');
   return estimate(row,mode,months);
 }
-const offerSql=`SELECT o.*, cap.product_id,cap.name AS storage,cap.price,p.name AS plan,p.fee,p.carrier_id,
+const offerSql=`SELECT o.*, cap.product_id,cap.name AS storage,cap.price,pr.name AS product_name,pr.sample,pr.closed,p.name AS plan,p.fee,p.carrier_id,
  p.source_key AS plan_source,p.enabled,c.name AS carrier FROM offers o JOIN capacities cap ON cap.id=o.capacity_id
- JOIN plans p ON p.id=o.plan_id JOIN carriers c ON c.id=p.carrier_id`;
+ JOIN products pr ON pr.id=cap.product_id JOIN plans p ON p.id=o.plan_id JOIN carriers c ON c.id=p.carrier_id`;
 export async function offer(db,id) {
   return (await db.all(offerSql+' WHERE o.id=?',[id]))[0];
 }
