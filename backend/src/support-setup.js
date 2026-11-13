@@ -20,7 +20,8 @@ async function publicList(config,path,params,fetcher) {
 }
 export async function supportCatalog(db,input,fetcher=fetch) {
   const {carrier,network,maker}=selection(input),config=await settings(db);
-  const params={dan_Company:carrier,planSKTService:'',planKTService:'',planLGUService:'',dan_Mau:maker,searchType:'danTelSearch'};
+  const params={dan_Company:carrier,planSKTService:'',planKTService:'',planLGUService:'',dan_Mau:maker,searchType:'danTelSearch',
+    p_Group:'',p_Group2:'',dan_Service:'',dan_Service2:''};
   params['plan'+carrier+'Service']='PHONE_'+network;
   try {
     const [modelResult,planResult]=await Promise.all([

@@ -8,7 +8,12 @@ export const supportInfo={
 export function supportFetcher(change={}) {
   return async(url,options)=>{
     const path=new URL(url).pathname;
-    if(path.endsWith('getTelProductList.do'))return Response.json([{listProductData:[{dan_Pc_Name:'갤럭시 S25',dan_Service:'5G',skt_Pn:'SM-S931N'}]}],{status:201});
+    if(path.endsWith('getTelProductList.do')){
+      const params=new URLSearchParams(options.body);
+      // The public server responds with an HTML error if these empty form fields are omitted.
+      if(['p_Group','p_Group2','dan_Service','dan_Service2'].some(key=>params.get(key)!==''))return new Response('<html>Invalid form</html>');
+      return Response.json([{listProductData:[{dan_Pc_Name:'갤럭시 S25',dan_Service:'5G',skt_Pn:'SM-S931N'}]}],{status:201});
+    }
     if(path.endsWith('getTelPlanList.do'))return Response.json([{listData:[{dan_Plan_Code:'NATM000110',dan_Plan_Name:'컴팩트'}]}],{status:201});
     if(path.endsWith('getPriceCompare.do')){
       const input=new URLSearchParams(options.body);
