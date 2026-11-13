@@ -1,9 +1,10 @@
 import { useRef, useState } from 'react';
-import { ArrowDown, ArrowUp, Copy, ImagePlus, Monitor, Smartphone, Trash2, Type } from 'lucide-react';
+import { ArrowDown, ArrowUp, Copy, ImagePlus, Monitor, Redo2, Smartphone, Trash2, Type, Undo2 } from 'lucide-react';
 import { bannerIconLabels, bannerIconShapes, bannerTextAlignments, defaultHeroLayers, defaultSlideLayers,
   maxBannerLayers, maxBannerText, newBannerIcon, newBannerLayer } from '../../../shared/banner-text.js';
 import { BannerIcon, BannerMedia, BannerTextPlane } from '../components/BannerCanvas.jsx';
 import { Hero } from '../components/common.jsx';
+import { useEditHistory } from '../hooks/edit-history.js';
 
 const clampPosition = value => Math.max(0,Math.min(100,Math.round(value)));
 const layerName=layer=>layer.type==='icon'?bannerIconLabels[layer.icon]:layer.text.trim().slice(0,35)||'빈 문구';
@@ -15,13 +16,15 @@ export default function BannerTextEditor({hero,form,onChange,home=false}) {
   const [narrow,setNarrow]=useState(false);
   const [showIcons,setShowIcons]=useState(false);
   const drag=useRef(null);
+  const editGroup=useRef(null);
+  const history=useEditHistory(form.layers??null,onChange);
   const selected=layers.find(layer=>layer.id===selectedId)??layers[0];
   const selectedIndex=layers.indexOf(selected);
   const isIcon=selected?.type==='icon';
   const full=layers.length>=maxBannerLayers;
 
   function update(id,values) {
-    onChange(layers.map(layer=>layer.id===id?{...layer,...values}:layer));
+    history.change(layers.map(layer=>layer.id===id?{...layer,...values}:layer),drag.current??editGroup.current);
   }
 
   function addText() {
@@ -33,7 +36,7 @@ export default function BannerTextEditor({hero,form,onChange,home=false}) {
 
   function addLayer(layer) {
     setSelected(layer.id);
-    onChange([...layers,layer]);
+    history.change([...layers,layer]);
   }
 
   function addIcon(name) {
@@ -53,13 +56,13 @@ export default function BannerTextEditor({hero,form,onChange,home=false}) {
     if(target<0||target>=next.length)return;
     next.splice(selectedIndex,1);
     next.splice(target,0,selected);
-    onChange(next);
+    history.change(next);
   }
 
   function remove() {
     const next=layers.filter(layer=>layer.id!==selected.id);
     setSelected(next[Math.min(selectedIndex,next.length-1)]?.id??'');
-    onChange(next);
+    history.change(next);
   }
 
   const editor={
@@ -69,6 +72,7 @@ export default function BannerTextEditor({hero,form,onChange,home=false}) {
       if(event.button!==0)return;
       event.preventDefault();
       setSelected(layer.id);
+      event.currentTarget.focus({preventScroll:true});
       const bounds=event.currentTarget.parentElement.getBoundingClientRect();
       drag.current={id:layer.id,pointerId:event.pointerId,startX:event.clientX,startY:event.clientY,
         x:Number(layer.x),y:Number(layer.y),width:bounds.width,height:bounds.height};
@@ -84,28 +88,41 @@ export default function BannerTextEditor({hero,form,onChange,home=false}) {
     },
     stop(event) {
       if(drag.current?.pointerId===event.pointerId)drag.current=null;
+    },
+    keyDown(event,layer) {
+      const movement={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]}[event.key];
+      if(!movement||event.altKey||event.ctrlKey||event.metaKey)return;
+      event.preventDefault();
+      setSelected(layer.id);
+      const step=event.shiftKey?5:1;
+      update(layer.id,{x:clampPosition(Number(layer.x)+movement[0]*step),y:clampPosition(Number(layer.y)+movement[1]*step)});
     }
   };
   return <section className="banner-editor" aria-label="배너 편집기">
     <div className="admin-head banner-editor-toolbar">
-      <div><h2>배너 편집기</h2><p>글자나 아이콘을 추가하고 미리보기에서 원하는 위치로 끌어 옮기세요.</p></div>
+      <div><h2>배너 편집기</h2><p>글자나 아이콘을 끌어 옮기거나, 선택 후 방향키로 위치를 조절하세요. Shift와 함께 누르면 5%씩 이동합니다.</p></div>
       <div className="actions" role="group" aria-label="미리보기 크기">
         <button className="btn" type="button" aria-pressed={!narrow} onClick={()=>setNarrow(false)}><Monitor size={17} aria-hidden="true"/>넓게</button>
         <button className="btn" type="button" aria-pressed={narrow} onClick={()=>setNarrow(true)}><Smartphone size={17} aria-hidden="true"/>휴대폰</button>
       </div>
     </div>
-    <div className="banner-editor-stage"><div className={'banner-editor-preview '+(narrow?'banner-editor-preview-narrow':'')}>
+    <div className="banner-editor-stage"><div key={form.image||'default'} className={'banner-editor-preview '+(narrow?'banner-editor-preview-narrow':'')}>
       {hero?<Hero data={{...hero,layers}} home={home} image={form.image} editor={editor}/>:<div className="banner banner-layered banner-editor-slide">
         <BannerMedia image={form.image} kind={form.kind} fit={form.fit} alt={form.alt}/>
         <BannerTextPlane className="banner-slide-plane" layers={layers} editor={editor}/>
       </div>}
     </div></div>
-    <div className="banner-editor-controls">
-      <div className="actions" role="group" aria-label="요소 추가">
+    <div className="banner-editor-controls" onFocusCapture={event=>{
+      if(event.target.matches('input,textarea'))editGroup.current={};
+    }} onBlurCapture={()=>{editGroup.current=null;}}>
+      <div className="banner-editor-command-bar"><div className="actions" role="group" aria-label="요소 추가">
         <button className="btn" type="button" onClick={addText} disabled={full}><Type size={17} aria-hidden="true"/>텍스트 추가</button>
         <button className="btn" type="button" onClick={()=>setShowIcons(!showIcons)} aria-expanded={showIcons}
           disabled={full&&!showIcons}><ImagePlus size={17} aria-hidden="true"/>아이콘 넣기</button>
-      </div>
+      </div><div className="actions" role="group" aria-label="편집 이력">
+        <button className="btn" type="button" onClick={history.undo} disabled={!history.canUndo}><Undo2 size={17} aria-hidden="true"/>되돌리기</button>
+        <button className="btn" type="button" onClick={history.redo} disabled={!history.canRedo}><Redo2 size={17} aria-hidden="true"/>다시 실행</button>
+      </div></div>
       {full&&<p className="message">배너에 최대 {maxBannerLayers}개 요소를 넣을 수 있습니다.</p>}
       {selected&&<div className="actions">
         <label>편집할 요소<select aria-label="편집할 요소" value={selected.id} onChange={event=>setSelected(event.target.value)}>
@@ -149,7 +166,7 @@ export default function BannerTextEditor({hero,form,onChange,home=false}) {
         </>}
       </div>}
     </div>
-    {form.layers==null?<button className="btn" type="button" onClick={()=>onChange(defaults)}>이 배치 적용</button>:
-      <button className="btn" type="button" onClick={()=>{setSelected('');onChange(null);}}>기본 배치로 복원</button>}
+    {form.layers==null?<button className="btn" type="button" onClick={()=>history.change(defaults)}>이 배치 적용</button>:
+      <button className="btn" type="button" onClick={()=>{setSelected('');history.change(null);}}>기본 배치로 복원</button>}
   </section>;
 }

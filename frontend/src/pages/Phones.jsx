@@ -1,5 +1,5 @@
 import { useEffect,useMemo,useState } from 'react';
-import { Link,useParams } from 'react-router-dom';
+import { Link,useParams,useSearchParams } from 'react-router-dom';
 import { useResource } from '../hooks/data.js';
 import { useSite } from '../layouts/SiteLayout.jsx';
 import { Breadcrumb,Section,Status } from '../components/common.jsx';
@@ -9,8 +9,21 @@ import { discountOptions,phoneInquiry } from '../../../shared/consultation.js';
 
 const won=value=>Number(value).toLocaleString('ko-KR')+'원';
 export function Catalog() {
-  const resource=useResource('/products'),[filter,setFilter]=useState({name:'',manufacturer:'',category:'',sort:'display'});
-  const update=(key,value)=>setFilter(previous=>({...previous,[key]:value}));
+  const resource=useResource('/products'),[params,setParams]=useSearchParams();
+  const filter={name:params.get('name')||'',manufacturer:params.get('manufacturer')||'',category:params.get('category')||'',sort:params.get('sort')||'display'};
+  const update=(key,value)=>setParams(previous=>{
+    const next=new URLSearchParams(previous);
+    if(value&&(key!=='sort'||value!=='display'))next.set(key,value);else next.delete(key);
+    return next;
+  },{replace:true,preventScrollReset:true});
+  const filtered=Boolean(filter.name||filter.manufacturer||filter.category||filter.sort!=='display');
+  function resetFilters() {
+    setParams(previous=>{
+      const next=new URLSearchParams(previous);
+      for(const key of Object.keys(filter))next.delete(key);
+      return next;
+    },{replace:true,preventScrollReset:true});
+  }
   const manufacturers=[...new Map(resource.data?.items.map(row=>[row.manufacturer_id,row.manufacturer])||[])];
   let rows=resource.data?.items.filter(row=>(!filter.manufacturer||row.manufacturer_id===filter.manufacturer)&&row.name.toLowerCase().includes(filter.name.trim().toLowerCase())&&
     (!filter.category||resource.data.links.some(link=>link.product_id===row.id&&link.category_id===filter.category)))||[];
@@ -21,7 +34,8 @@ export function Catalog() {
       <label>제조사<select value={filter.manufacturer} onChange={e=>update('manufacturer',e.target.value)}><option value="">전체</option>{manufacturers.map(([id,name])=><option key={id} value={id}>{name}</option>)}</select></label>
       <label>카테고리<select value={filter.category} onChange={e=>update('category',e.target.value)}><option value="">전체</option>{resource.data?.categories.map(row=><option value={row.id} key={row.id}>{row.name}</option>)}</select></label>
       <label>정렬<select value={filter.sort} onChange={e=>update('sort',e.target.value)}><option value="display">기본 순서</option><option value="price">출고가 낮은 순</option><option value="name">모델명 순</option></select></label></div>
-    <Status resource={resource}/><div className="card-grid columns-4">{rows.map(item=><Link key={item.id} className="service-card catalog-card" to={'/phones/'+item.id}><small>{item.sample?'전시 예시':item.closed?'상담 마감':item.manufacturer}</small>{item.image&&<img src={item.image} alt="" loading="lazy"/>}<h3>{item.name}</h3><p>{item.price?won(item.price)+'부터':'가격 조건 준비 중'}</p><span>조건 선택하기 ›</span></Link>)}</div>
+    <Status resource={resource}/>{resource.data&&<div className="results-toolbar"><p role="status">전체 {resource.data.items.length}개 중 <strong>{rows.length}개</strong> 모델</p><button type="button" className="btn" disabled={!filtered} onClick={resetFilters}>검색 조건 초기화</button></div>}
+    <div className="card-grid columns-4">{rows.map(item=><Link key={item.id} className="service-card catalog-card" to={'/phones/'+item.id}><small>{item.sample?'전시 예시':item.closed?'상담 마감':item.manufacturer}</small>{item.image&&<img src={item.image} alt="" loading="lazy"/>}<h3>{item.name}</h3><p>{item.price!=null?won(item.price)+'부터':'가격 조건 준비 중'}</p><span>조건 선택하기 ›</span></Link>)}</div>
     {resource.data&&!rows.length&&<p className="message">조건에 맞는 모델이 없습니다.</p>}</Section></>;
 }
 const selectors=[['carrier','구매할 통신사'],['join_type','가입 유형'],['storage','용량'],['plan_id','요금제']];

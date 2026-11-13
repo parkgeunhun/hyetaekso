@@ -46,7 +46,7 @@ export function BannerTextPlane({layers,className='',editor,headingFallback}) {
       if (editor) return <button key={layer.id} type="button" className={className+' banner-text-handle'}
         data-icon-shape={icon?layer.shape:undefined} aria-label={'미리보기 '+description} aria-pressed={editor.selected===layer.id}
         style={style} onClick={()=>editor.select(layer.id)} onPointerDown={event=>editor.start(event,layer)}
-        onPointerMove={editor.move} onPointerUp={editor.stop} onPointerCancel={editor.stop}>
+        onPointerMove={editor.move} onPointerUp={editor.stop} onPointerCancel={editor.stop} onKeyDown={event=>editor.keyDown?.(event,layer)}>
         {value||'빈 문구'}
       </button>;
       if(icon)return <span key={layer.id} className={className} style={style} data-icon-shape={layer.shape} aria-hidden="true">{value}</span>;

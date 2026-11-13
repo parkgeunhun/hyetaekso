@@ -1,14 +1,21 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { appearanceSlots, heroAppearance } from '../../../shared/site-appearance.js';
 import { api } from '../services/api.js';
 import { useResource } from '../hooks/data.js';
-import { Art, Status } from '../components/common.jsx';
+import { Art, Modal, Status } from '../components/common.jsx';
 import { EditorFields } from './Editors.jsx';
 import BannerTextEditor from './BannerTextEditor.jsx';
 import CopyCode from './CopyCode.jsx';
 
 const slotTitle=(slot,values)=>values?.title?.trim()||slot.label;
+
+function readDraft(key) {
+  try {
+    const draft=JSON.parse(sessionStorage.getItem(key));
+    return draft?.form&&typeof draft.form==='object'&&!Array.isArray(draft.form)?draft:null;
+  } catch {return null;}
+}
 
 function initialForm(slot, values) {
   return {
@@ -20,13 +27,45 @@ function initialForm(slot, values) {
 }
 
 function SlotEditor({slot, saved, onChanged}) {
-  const [form, setForm] = useState(() => initialForm(slot, saved));
+  const draftKey='hyetaekso-appearance-draft:v1:'+slot.key;
+  const [draft]=useState(()=>readDraft(draftKey));
+  const [baseline,setBaseline]=useState(()=>initialForm(slot,saved));
+  const [form, setForm] = useState(() => draft?.form??baseline);
+  const [restored,setRestored]=useState(Boolean(draft));
+  const [draftSaved,setDraftSaved]=useState(false);
+  const [confirmReset,setConfirmReset]=useState(false);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
+  const dirty=JSON.stringify(form)!==JSON.stringify(baseline);
   const mediaFields = slot.textOnly ? [] : [['image', slot.hero ? '배너 이미지' : '이미지', 'picture']];
   const otherFields = slot.hero ? [] : (slot.fields ?? [])
     .map(([key, label]) => [key, label, key === 'description' ? 'area' : 'text']);
   const mediaCategory=slot.path==='/mobility'?'car':slot.hero?'banner':'other';
+
+  useEffect(()=>{
+    try {
+      if(dirty)sessionStorage.setItem(draftKey,JSON.stringify({base:JSON.stringify(baseline),form}));
+      else sessionStorage.removeItem(draftKey);
+      setDraftSaved(true);
+    } catch {setDraftSaved(false);}
+  },[draftKey,baseline,form,dirty]);
+  useEffect(()=>{
+    if(!dirty||draftSaved)return;
+    const warn=event=>{event.preventDefault();event.returnValue='';};
+    window.addEventListener('beforeunload',warn);
+    return ()=>window.removeEventListener('beforeunload',warn);
+  },[dirty,draftSaved]);
+
+  function edit(update) {
+    setForm(update);
+    setResult(null);
+  }
+
+  function discard() {
+    setForm(baseline);
+    setRestored(false);
+    setResult({message:'마지막으로 저장한 설정을 불러왔습니다.'});
+  }
 
   async function apply(event, reset = false) {
     event.preventDefault();
@@ -34,7 +73,10 @@ function SlotEditor({slot, saved, onChanged}) {
     setResult(null);
     try {
       const values = await api('/admin/appearance/' + slot.key, reset ? {method: 'DELETE'} : {method: 'PUT', body: form});
-      setForm(initialForm(slot, reset ? undefined : values));
+      const next=initialForm(slot,reset?undefined:values);
+      setForm(next);
+      setBaseline(next);
+      setRestored(false);
       setResult({message: reset ? '기본 이미지와 문구를 복원했습니다.' : '공개 화면에 반영했습니다.'});
       onChanged();
     } catch (error) {
@@ -44,24 +86,36 @@ function SlotEditor({slot, saved, onChanged}) {
     }
   }
 
-  return <form className="admin-panel form-stack" onSubmit={apply}>
+  return <><form className="admin-panel form-stack" onSubmit={apply}>
     <fieldset className="editor-fieldset" disabled={busy}>
       <legend>{slotTitle(slot,saved)}</legend>
       {!slot.hero&&!slot.textOnly&&!form.image&&<div className="appearance-preview">
         <small>기본 이미지</small>
         {slot.image ? <img src={slot.image} alt="기본 이미지"/> : <Art tile={slot.tile}/>}
       </div>}
-      <EditorFields fields={mediaFields} form={form} setForm={setForm} mediaCategory={mediaCategory}/>
+      <EditorFields fields={mediaFields} form={form} setForm={edit} mediaCategory={mediaCategory}/>
       {slot.hero&&<BannerTextEditor hero={heroAppearance(slot.hero,form)} form={form} home={slot.key==='home-hero'}
-        onChange={layers=>setForm(current=>({...current,layers}))}/>}
-      {otherFields.length>0&&<EditorFields fields={otherFields} form={form} setForm={setForm}/>}
+        onChange={layers=>edit(current=>({...current,layers}))}/>}
+      {otherFields.length>0&&<EditorFields fields={otherFields} form={form} setForm={edit}/>}
+      {dirty&&<p className="message" role="status">{restored?'이 탭에 임시 보관한 편집 내용을 복원했습니다. ':''}
+        {draftSaved?'미저장 변경 내용은 이 탭에 임시 보관됩니다. 탭을 닫기 전에 저장해 주세요.':'임시 보관을 사용할 수 없습니다. 화면을 이동하기 전에 저장해 주세요.'}
+        {' '}공개 화면에는 저장 후 반영됩니다.
+        {restored&&draft.base!==JSON.stringify(baseline)&&' 서버의 저장 내용도 변경되어 있습니다. 저장 전 공개 화면과 비교해 주세요.'}
+      </p>}
       <div className="actions">
         <button className="btn primary" type="submit">{busy ? '처리 중…' : '화면 설정 저장'}</button>
-        <button className="btn" type="button" onClick={event=>apply(event, true)}>기본값 복원</button>
+        <button className="btn" type="button" disabled={!dirty} onClick={discard}>미저장 변경 취소</button>
+        <button className="btn" type="button" onClick={()=>setConfirmReset(true)}>기본값 복원</button>
       </div>
     </fieldset>
     {result&&<p role={result.error?'alert':'status'} className={'message '+(result.error?'error':'')}>{result.message}</p>}
-  </form>;
+  </form>
+    {confirmReset&&<Modal title="기본값으로 복원할까요?" onClose={()=>setConfirmReset(false)}>
+      <p>{slotTitle(slot,saved)}의 이미지와 문구를 기본 설정으로 바꿉니다. 현재 편집 내용과 저장된 설정이 기본값으로 교체되고 공개 화면에도 바로 반영됩니다.</p>
+      <div className="actions"><button type="button" className="btn" onClick={()=>setConfirmReset(false)}>취소</button>
+        <button type="button" className="btn primary" onClick={event=>{setConfirmReset(false);apply(event,true);}}>기본값으로 복원</button></div>
+    </Modal>}
+  </>;
 }
 
 export default function AppearanceEditor({onChanged, page}) {

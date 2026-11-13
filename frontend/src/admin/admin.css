@@ -104,6 +104,9 @@
 .banner-editor-slide{height:clamp(320px,38cqw,600px)}
 .banner-editor-controls{display:grid;gap:10px;min-width:0;padding:10px;border:1px solid var(--line);border-radius:10px}
 .banner-editor-controls .actions{align-items:end}
+.banner-editor-command-bar{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(230px,100%),1fr));gap:8px}
+.banner-editor-command-bar>.actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.banner-editor-controls .banner-editor-command-bar .btn{min-height:40px;gap:5px;padding:8px 6px;font-size:13px}
 .banner-editor-controls .actions label{flex:1 1 160px;min-width:0}
 .banner-layer-actions .btn{min-width:38px}
 .banner-icon-picker{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(78px,100%),1fr));gap:7px;padding:9px;border-radius:10px;background:#f6f5f2}

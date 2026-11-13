@@ -8,6 +8,7 @@ import { defaultBrandImage } from '../../../shared/site-appearance.js';
 import { serviceByPage } from '../../../shared/consultation.js';
 import ConsultationDialog from '../components/ConsultationDialog.jsx';
 import { ConsultationLink } from '../components/ConsultationLink.jsx';
+import { boardTitles } from '../pages/content.js';
 import './site-theme.css';
 
 const defaultSite={settings:{company:'혜택소'},banners:[],appearance:{}};
@@ -49,7 +50,7 @@ export default function SiteLayout() {
   },[location.pathname]);
   useEffect(()=>{
     const key=location.pathname.split('/')[1];
-    document.title=(menuLabel(key,navigation)??({phones:'휴대폰',consult:'상담 신청',lookup:'상담 조회'}[key]||'생활에 필요한 혜택'))+' | 혜택소';
+    document.title=(menuLabel(key,navigation)??({phones:'휴대폰',consult:'상담 신청',lookup:'상담 조회',privacy:'개인정보처리방침',terms:'이용약관',sitemap:'사이트맵',board:boardTitles[location.pathname.split('/')[2]]}[key]||'생활에 필요한 혜택'))+' | 혜택소';
   },[location.pathname,navigation]);
   useEffect(()=>{
     if(settings.motion==='off'||!('IntersectionObserver' in window)||matchMedia('(prefers-reduced-motion: reduce)').matches)return;

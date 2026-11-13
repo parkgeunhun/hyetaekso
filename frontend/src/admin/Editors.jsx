@@ -160,9 +160,10 @@ export function Records({entity,refs,onChanged,kind,category,general,title:custo
       {resource.data&&!records.length&&<p className="message">항목이 없습니다.</p>}
     </div>
     {form&&<Modal title={title+(form.id?' 수정':' 등록')} className={entity==='banners'?'banner-editor-dialog':''} onClose={()=>{if(!busy)setForm(null);}}><form className="form-stack" onSubmit={save}>
+      <fieldset className="editor-fieldset" disabled={busy}>
       <EditorFields fields={recordFields(entity,fields,form)} form={form} setForm={setForm} refs={refs} mediaCategory={mediaCategory}/>
       {entity==='banners'&&Boolean(form.intro)&&<BannerTextEditor form={form} onChange={layers=>setForm(current=>({...current,layers}))}/>}
-      {error&&<p role="alert" className="message error">{error}</p>}<button className="btn primary" disabled={busy}>저장</button></form></Modal>}
+      {error&&<p role="alert" className="message error">{error}</p>}<button className="btn primary" disabled={busy}>{busy?'저장 중…':'저장'}</button></fieldset></form></Modal>}
     {remove&&<Modal title="항목 삭제" onClose={()=>{if(!busy)setRemove(null);}}><p>{itemTitle(remove)} 항목을 삭제합니다.</p>{error&&<p role="alert" className="message error">{error}</p>}<button className="btn danger" onClick={deleteItem} disabled={busy}>삭제</button></Modal>}
   </>;
 }

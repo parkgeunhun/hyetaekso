@@ -114,14 +114,23 @@ function RentalItems() {
   return resource.data?.length?<Section title="등록된 렌탈 상품"><div className="card-grid columns-4">{resource.data.map(item=><Link className="service-card card-body" key={item.id} to={'/board/rental/'+item.id}>{item.image&&<img loading="lazy" src={item.image} alt=""/>}<h3>{item.title}</h3></Link>)}</div></Section>:null;
 }
 function SupportBody() {
-  const {settings}=useSite(),faq=useResource('/content/faq'),[tab,setTab]=useState('전체');
-  const topics=['전체','통신','렌탈','이사·홈','공간','모빌리티','사업자 서비스','가맹안내','기타'];
+  const {settings}=useSite(),faq=useResource('/content/faq'),[tab,setTab]=useState('전체'),[search,setSearch]=useState('');
+  const topics=[...new Set(['전체','통신','렌탈','이사·홈','공간','모빌리티','보험','사업자 서비스','가맹안내','기타',...(faq.data??[]).map(item=>item.category).filter(Boolean)])];
+  const terms=search.trim().toLocaleLowerCase('ko').split(/\s+/).filter(Boolean);
+  const questions=faq.data?.filter(item=>(tab==='전체'||item.category===tab)&&terms.every(term=>(item.title+' '+item.body).toLocaleLowerCase('ko').includes(term)))??[];
   return <><Section title="고객센터 문의 채널"><div className="card-grid columns-4">
     {[['전화 상담','Phone',settings.phone? <a href={'tel:'+settings.phone.replace(/[^+\d]/g,'')}>{settings.phone}</a>:'전화 안내 준비 중',settings.hours],
       ['온라인 문의','Headset',<ConsultationLink className="btn" service="고객문의">1:1 문의하기 ›</ConsultationLink>],
       ['카카오톡 상담','Users',settings.kakao?<a className="btn" href={settings.kakao}>상담하기 ›</a>:'상담 채널 준비 중'],
       ['이메일 문의','ClipboardList',settings.email?<a href={'mailto:'+settings.email}>{settings.email}</a>:'이메일 안내 준비 중']].map(([title,icon,action,note])=><article className="service-card contact-card" key={title}><Icon name={icon} size={36}/><h3>{title}</h3><div>{action}</div>{note&&<p>{note}</p>}</article>)}</div></Section>
-    <Section title="자주 묻는 질문" description="고객들이 자주 문의하시는 내용을 모았습니다." className="center"><div className="tabs">{topics.map(topic=><button key={topic} aria-pressed={tab===topic} onClick={()=>setTab(topic)}>{topic}</button>)}</div><Status resource={faq}/><div className="faq-list">{faq.data?.filter(item=>tab==='전체'||item.category===tab).map(item=><details key={item.id}><summary><b>Q</b>{item.title}</summary><p>{item.body}</p></details>)}</div>{faq.data&&!faq.data.some(item=>tab==='전체'||item.category===tab)&&<p className="message">이 분류의 등록된 질문이 없습니다.</p>}</Section>
+    <Section title="자주 묻는 질문" description="고객들이 자주 문의하시는 내용을 모았습니다." className="center">
+      <div className="tabs">{topics.map(topic=><button key={topic} aria-pressed={tab===topic} onClick={()=>setTab(topic)}>{topic}</button>)}</div>
+      <label className="faq-search">질문 검색<input type="search" value={search} placeholder="궁금한 내용을 입력하세요" onChange={event=>setSearch(event.target.value)}/></label>
+      <Status resource={faq}/>
+      {faq.data&&<div className="results-toolbar"><p role="status">질문 {questions.length}개</p><button className="btn" type="button" disabled={!search&&tab==='전체'} onClick={()=>{setSearch('');setTab('전체');}}>검색 조건 초기화</button></div>}
+      <div className="faq-list">{questions.map(item=><details key={item.id}><summary><b>Q</b>{item.title}</summary><p>{item.body}</p></details>)}</div>
+      {faq.data&&!questions.length&&<p className="message">{search?'검색 결과가 없습니다. 다른 검색어나 분류를 선택해 주세요.':'이 분류의 등록된 질문이 없습니다.'}</p>}
+    </Section>
     <Callout title="고객의 소리에 귀 기울이겠습니다" service="고객의 소리"/></>;
 }
 export function Legal({kind}) {
