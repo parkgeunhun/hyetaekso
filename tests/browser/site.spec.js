@@ -245,7 +245,9 @@ test('admin lists and selectors show meaningful names for phones, support and mo
   await expect(productRow.getByText('demo-0',{exact:true})).toHaveCount(0);
 
   await page.goto('/admin/plans');
-  await expect(table.getByRole('cell',{name:'SKT · 5G 예시 요금제',exact:true})).toBeVisible();
+  const planRow=table.getByRole('row').filter({has:page.getByRole('cell',{name:'5G 예시 요금제',exact:true})}).filter({has:page.getByRole('cell',{name:'SKT',exact:true})});
+  await expect(planRow).toBeVisible();
+  await expect(planRow.getByRole('cell',{name:'사용 중',exact:true})).toBeVisible();
   const headers={Origin:new URL(page.url()).origin};
   const support=await page.request.post('/api/admin/supports',{headers,data:{
     offer_id:'demo-0-skt-0',amount:100000,source:'검증 자료',expires_at:Date.now()+86400000

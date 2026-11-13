@@ -1,5 +1,5 @@
 import { useEffect,useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link,useSearchParams } from 'react-router-dom';
 import { api } from '../services/api.js';
 import { useResource } from '../hooks/data.js';
 import { Modal,Status } from '../components/common.jsx';
@@ -10,6 +10,7 @@ import { MediaPicker } from './ImageLibrary.jsx';
 import BannerTextEditor from './BannerTextEditor.jsx';
 import DocumentEditor from './DocumentEditor.jsx';
 import CopyCode,{ CopyCodeHeader } from './CopyCode.jsx';
+import PlanFilters,{readPlanFilters,filterPlans} from './PlanFilters.jsx';
 
 function MediaField({label,value,update,type,category}) {
   const [picker,setPicker]=useState(false);
@@ -65,7 +66,7 @@ function recordFields(entity, fields, form) {
 const recordColumns={
   products:[['모델명',item=>item.name],['제조사',item=>item.manufacturer]],
   capacities:[['휴대폰 모델',phoneModel],['용량',item=>item.name],['출고가',item=>won(item.price)]],
-  plans:[['통신사·요금제',item=>recordTitle('plans',item)],['월정액',item=>won(item.fee)]],
+  plans:[['통신사',item=>item.carrier],['요금제',item=>item.name],['월정액',item=>won(item.fee)],['사용 상태',item=><span className={'plan-state '+(Number(item.enabled)?'enabled':'disabled')}>{Number(item.enabled)?'사용 중':'사용 안 함'}</span>]],
   supports:[['휴대폰·요금제 조건',item=>recordTitle('supports',item)],['지원금',item=>won(item.amount)],['출처',item=>item.source]]
 };
 
@@ -99,6 +100,8 @@ export function Records({entity,refs,onChanged,kind,category,general,title:custo
     .map(field=>category==='service:mobility'&&field[0]==='title'?['title','차량명 또는 안내 제목']:field);
   const mediaCategory=entity==='banners'?'banner':['products','colors'].includes(entity)?'phone':category==='service:mobility'?'car':'other';
   const [form,setForm]=useState(null),[query,setQuery]=useState(''),[busy,setBusy]=useState(false),[error,setError]=useState(''),[remove,setRemove]=useState(null);
+  const [params,setParams]=useSearchParams();
+  const isPlan=entity==='plans',planFilters=readPlanFilters(params);
   const isCapacity=entity==='capacities';
   const isColor=entity==='colors';
   const primaryLabel=fields.find(([key])=>key==='name'||key==='title')?.[1]??'항목';
@@ -106,7 +109,7 @@ export function Records({entity,refs,onChanged,kind,category,general,title:custo
   const searchLabel=isColor?'모델명·색상 검색':columns.map(([label])=>label).join('·')+' 검색';
   const itemTitle=item=>isCapacity?recordTitle(entity,item)+' · '+won(item.price):recordTitle(entity,item);
   const search=query.trim().toLowerCase();
-  const records=(resource.data??[]).filter(item=>{
+  const records=isPlan?filterPlans(resource.data??[],planFilters):(resource.data??[]).filter(item=>{
     const values=[...Object.values(item),itemTitle(item).replaceAll(' · ',' '),columns.map(([,read])=>read(item)).join(' ')];
     return values.some(value=>String(value).toLowerCase().includes(search));
   });
@@ -138,12 +141,12 @@ export function Records({entity,refs,onChanged,kind,category,general,title:custo
   }
   return <><div className="admin-head"><div><h1>{title}</h1><p>등록된 항목을 검색하고 변경할 수 있습니다.</p></div>{entity==='products'?<Link className="btn primary" to="/admin/phone-registration">휴대폰 등록</Link>:<button className="btn primary" onClick={()=>{setError('');setForm(blankFields(fields));}}>+ 새 항목</button>}</div>
     <div className="admin-panel">
-      <label>{searchLabel}<input type="search" value={query} onChange={e=>setQuery(e.target.value)}/></label>
+      {isPlan?<PlanFilters filters={planFilters} setParams={setParams} carriers={refs?.carriers} rows={resource.data??[]} count={records.length} loaded={Boolean(resource.data)}/>:<label>{searchLabel}<input type="search" value={query} onChange={e=>setQuery(e.target.value)}/></label>}
       <Status resource={resource}/>
       {isColor?<section className="phone-color-grid" aria-label="휴대폰 색상 목록">
         {records.map(item=><ColorCard key={item.id} item={item} onEdit={()=>editItem(item)} onDelete={()=>confirmDelete(item)}/>)}
       </section>:<div className="table-scroll">
-        <table>
+        <table className={isPlan?'plans-table':undefined}>
           <thead><tr>
             {columns.map(([label])=><th key={label} scope="col">{label}</th>)}<th scope="col">관리</th><CopyCodeHeader/>
           </tr></thead>
@@ -157,7 +160,7 @@ export function Records({entity,refs,onChanged,kind,category,general,title:custo
           </tr>)}</tbody>
         </table>
       </div>}
-      {resource.data&&!records.length&&<p className="message">항목이 없습니다.</p>}
+      {resource.data&&!records.length&&<p className="message">{isPlan&&resource.data.length?'조건에 맞는 요금제가 없습니다. 필터를 변경하거나 초기화해 주세요.':'항목이 없습니다.'}</p>}
     </div>
     {form&&<Modal title={title+(form.id?' 수정':' 등록')} className={entity==='banners'?'banner-editor-dialog':''} onClose={()=>{if(!busy)setForm(null);}}><form className="form-stack" onSubmit={save}>
       <fieldset className="editor-fieldset" disabled={busy}>
