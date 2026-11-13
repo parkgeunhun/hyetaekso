@@ -10,6 +10,7 @@ import { saveRecord,saveSettings } from '../backend/src/records.js';
 import { koreaDay, recentPageViews, recordPageView } from '../backend/src/page-views.js';
 import { newLeadReceipt } from '../backend/src/leads.js';
 import { serviceReceiptCodes, serviceTypes } from '../shared/consultation.js';
+import { visitorScenario } from './public-access-scenario.js';
 
 const origin='http://127.0.0.1:5173',env={APP_ORIGIN:origin,LOCAL_DEV:true};
 async function scenario(db) {
@@ -303,7 +304,7 @@ test('page views roll over at midnight in Korea and distinguish untracked days',
     ]);
   } finally {db.close();}
 });
-test('private preview exposes the published catalog and its covers to visitors',async()=>{
+test('legacy preview configuration does not hide published products from visitors',async()=>{
   const db=await sqlite(':memory:');
   const previewOrigin='https://preview.example';
   const request=(path,method='GET')=>handleApi(new Request(previewOrigin+path,{method}),{APP_ORIGIN:previewOrigin,PRIVATE_PREVIEW:true},db);
@@ -325,9 +326,10 @@ test('private preview exposes the published catalog and its covers to visitors',
     assert.equal(image.headers.get('cache-control'),'private, no-store');
     assert.deepEqual(Buffer.from(await image.arrayBuffer()),bytes);
     assert.equal((await request(cover,'HEAD')).status,200);
-    for(const path of [privateCover,'/api/products/'+product.id,'/api/site','/api/admin/leads']){
-      assert.equal((await request(path)).status,401);
-    }
+    assert.equal((await request(privateCover)).status,404);
+    assert.equal((await request('/api/products/'+product.id)).status,200);
+    assert.equal((await request('/api/site')).status,200);
+    assert.equal((await request('/api/admin/leads')).status,401);
     const company=await request('/api/public-info');
     assert.equal(company.status,200);
     const info=await company.json();
@@ -349,10 +351,15 @@ test('private preview exposes the published catalog and its covers to visitors',
     assert.equal(lookup.status,200);
     assert.equal((await lookup.json()).service,'휴대폰');
     await saveRecord(db,'products',{...product,status:'draft'},product.id);
-    assert.equal((await request(cover)).status,401);
+    assert.equal((await request(cover)).status,404);
   } finally {db.close();}
 });
-test('MySQL-compatible database API workflow',{skip:!process.env.MYSQL_TEST_URL},async()=>{
+test('guests can browse, calculate and request consultation while unpublished data stays private',async()=>{
+  const db=await sqlite(':memory:');
+  try{await visitorScenario(db);}finally{db.close();}
+});
+
+test('MySQL-compatible database API and guest shopping workflow',{skip:!process.env.MYSQL_TEST_URL},async()=>{
   const db=await connectMysql(process.env.MYSQL_TEST_URL);
-  try {await applySchema(db);await scenario(db);}finally{await db.close();}
+  try {await applySchema(db);await scenario(db);await visitorScenario(db);}finally{await db.close();}
 });

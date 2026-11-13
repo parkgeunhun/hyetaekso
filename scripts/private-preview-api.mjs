@@ -14,7 +14,7 @@ if(database.protocol!=='mysql:'||!['localhost','127.0.0.1','[::1]'].includes(dat
 }
 const startup=await connectMysql(DATABASE_URL);
 try { await startup.all('SELECT 1'); } finally { await startup.close(); }
-const env={APP_ORIGIN:origin.origin,PRIVATE_PREVIEW:true,SUPPORT_FEED_URL,MEDIA:await localMedia('.local/private-preview-media')};
+const env={APP_ORIGIN:origin.origin,SUPPORT_FEED_URL,MEDIA:await localMedia('.local/private-preview-media')};
 const server=createServer(async(incoming,outgoing)=>{
   let db;
   try {

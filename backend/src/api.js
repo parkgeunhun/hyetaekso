@@ -3,7 +3,8 @@ import { databaseMedia, mediaKey, mediaLimit, mediaTypes } from './media-store.j
 import { deleteMedia, listMedia, mediaDetails, updateMedia } from './media-library.js';
 import { listBanners } from './banner-text.js';
 import { ApiError, invalid, digest, token, matchesPassword, cookie, accountSession, requireOrigin, rateLimit, readJson, text, choice } from './security.js';
-import { isPublishedProductCover, listProducts, product, quote } from './catalog.js';
+import { listProducts, product, quote } from './catalog.js';
+import { isPublishedMedia } from './public-media.js';
 import { definitions, saveRecord, settings, saveSettings } from './records.js';
 import { listAdminOffers,listAdminSupports,saveOfferChanges } from './offer-editor.js';
 import { appearance, saveAppearance, resetAppearance } from './appearance.js';
@@ -12,7 +13,7 @@ import { registerPhone } from './phone-registration.js';
 import { createManualLead, deleteLeads, lookupLead, submitLead, updateLead } from './leads.js';
 import { supportSyncStatus, syncSupports } from './sync.js';
 import { koreaDay, recentPageViews, recordPageView } from './page-views.js';
-import { publicCompanyInfo } from '../../shared/company-documents.js';
+import { publicCompanyInfo, publicSiteSettings } from '../../shared/company-documents.js';
 
 export const json=(data,status=200,headers={})=>Response.json(data,{status,headers:{'Cache-Control':'no-store','X-Content-Type-Options':'nosniff',...headers}});
 const notFound=()=>new ApiError(404,'not_found','페이지나 데이터를 찾을 수 없습니다.');
@@ -70,21 +71,15 @@ export async function handleApi(request,env,db) {
       await recordPageView(db);
       return new Response(null,{status:204,headers:{'Cache-Control':'no-store'}});
     }
-    const catalogList=area==='products'&&method==='GET'&&!action&&!id;
-    const publicConsultation=area==='consultations'&&method==='POST'&&!id&&(!action||action==='lookup');
     const mediaRead=area==='media'&&!id&&['GET','HEAD'].includes(method)&&mediaKey.test(action??'');
-    if(env.PRIVATE_PREVIEW&&area!=='admin'&&!catalogList&&!publicConsultation&&!await accountSession(request,db)) {
-      if(!mediaRead||!await isPublishedProductCover(db,action,origin)) {
-        throw new ApiError(401,'login_required','미리보기 데이터를 보려면 관리자 로그인이 필요합니다.');
-      }
-    }
     if(mediaRead) {
+      if(!await isPublishedMedia(db,action,origin)&&!await accountSession(request,db))throw notFound();
       const response=await serveMedia(databaseMedia(db,env.MEDIA),action,request);
       if(!response)throw notFound();
-      if(env.PRIVATE_PREVIEW)response.headers.set('Cache-Control','private, no-store');
+      response.headers.set('Cache-Control','private, no-store');
       return response;
     }
-    if(area==='site'&&method==='GET') return json({settings:await settings(db),appearance:await appearance(db),navigation:await navigation(db),banners:await listBanners(db,true)});
+    if(area==='site'&&method==='GET') return json({settings:publicSiteSettings(await settings(db)),appearance:await appearance(db),navigation:await navigation(db),banners:await listBanners(db,true)});
     if(area==='products'&&method==='GET') {
       if(action) return json(await product(db,action));
       return json({items:await listProducts(db),categories:await db.all('SELECT * FROM categories ORDER BY name'),links:await db.all(`SELECT pc.* FROM product_categories pc JOIN products p ON p.id=pc.product_id WHERE p.status='published'`)});

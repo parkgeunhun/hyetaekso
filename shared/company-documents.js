@@ -128,3 +128,9 @@ const publicFields=['company','representative','registration','address','phone',
 export function publicCompanyInfo(settings) {
   return Object.fromEntries(publicFields.map(key=>[key,settings[key]]));
 }
+
+export function publicSiteSettings(settings) {
+  const displayFields=['kakao','banner_autoplay','banner_interval','motion','join_change','join_new','join_port',
+    'help_enabled','help_text','success_text'];
+  return {...publicCompanyInfo(settings),...Object.fromEntries(displayFields.map(key=>[key,settings[key]]))};
+}
