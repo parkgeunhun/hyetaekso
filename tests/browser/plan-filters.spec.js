@@ -1,6 +1,8 @@
 import {test,expect} from '@playwright/test';
 
 test('plan filters combine carrier, fee bounds, status and names and survive editing and reloads',async({page,baseURL})=>{
+  const timing=await page.context().newCDPSession(page);
+  await timing.send('Emulation.setCPUThrottlingRate',{rate:4});
   await page.setExtraHTTPHeaders({'cf-connecting-ip':'198.51.100.32'});
   await page.goto('/admin/plans');
   await page.getByLabel('아이디').fill('browser-admin');
@@ -21,30 +23,34 @@ test('plan filters combine carrier, fee bounds, status and names and survive edi
     const search=filters.getByRole('searchbox'),carrier=filters.getByRole('combobox',{name:'통신사',exact:true}),state=filters.getByRole('combobox',{name:'사용 상태',exact:true});
     const min=filters.getByLabel('최소 월정액 (원)',{exact:true}),max=filters.getByLabel('최대 월정액 (원)',{exact:true});
     const rows=page.locator('tbody tr'),reset=filters.getByRole('button',{name:'필터 초기화',exact:true});
-    const fees=()=>rows.locator('td:nth-child(3)').allTextContents();
+    const fees=rows.locator('td:nth-child(3)');
     await search.fill(name);
     await expect(rows).toHaveCount(4);
     await expect(filters.getByRole('status')).toContainText('4개 표시');
     await carrier.selectOption({label:'SKT'});
     await expect(rows).toHaveCount(2);
     await min.fill('0');await max.fill('0');
-    await expect(rows).toHaveCount(1);expect(await fees()).toEqual(['0원']);
+    await expect(rows).toHaveCount(1);await expect(fees).toHaveText(['0원']);
     await reset.click();
     await expect(search).toHaveValue('');await expect(carrier).toHaveValue('');await expect(reset).toBeDisabled();
     await search.fill(name);await min.fill('39000');await max.fill('69000');
     await expect(rows).toHaveCount(2);
     await state.selectOption('1');await carrier.selectOption({label:'KT'});
-    await expect(rows).toHaveCount(1);expect(await fees()).toEqual(['69,000원']);
+    await expect(rows).toHaveCount(1);await expect(fees).toHaveText(['69,000원']);
     await page.reload();
     await expect(search).toHaveValue(name);await expect(carrier).toHaveValue(kt.id);await expect(min).toHaveValue('39000');await expect(max).toHaveValue('69000');
     await expect(rows).toHaveCount(1);
+    await page.getByRole('navigation',{name:'관리 메뉴',exact:true}).getByRole('link',{name:'통신사',exact:true}).click();
+    await expect(page.getByRole('heading',{name:'통신사',exact:true})).toBeVisible();
+    await page.goBack();
+    await expect(search).toHaveValue(name);await expect(carrier).toHaveValue(kt.id);await expect(rows).toHaveCount(1);
     await max.fill('10000');
     await expect(filters.getByRole('alert')).toContainText('최대 월정액을 최소 월정액 이상');await expect(max).toHaveAttribute('aria-invalid','true');
     await reset.click();await search.fill(name);
     await filters.getByRole('combobox',{name:'정렬',exact:true}).selectOption('fee-desc');
-    await expect(rows).toHaveCount(4);expect(await fees()).toEqual(['99,000원','69,000원','39,000원','0원']);
+    await expect(rows).toHaveCount(4);await expect(fees).toHaveText(['99,000원','69,000원','39,000원','0원']);
     await filters.getByRole('combobox',{name:'정렬',exact:true}).selectOption('fee-asc');
-    expect(await fees()).toEqual(['0원','39,000원','69,000원','99,000원']);
+    await expect(fees).toHaveText(['0원','39,000원','69,000원','99,000원']);
     await state.selectOption('0');await expect(rows).toHaveCount(1);await expect(rows).toContainText('사용 안 함');
     await rows.getByRole('button',{name:'수정',exact:true}).click();
     const dialog=page.getByRole('dialog',{name:'요금제 수정',exact:true});

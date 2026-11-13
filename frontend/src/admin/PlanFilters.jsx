@@ -1,4 +1,5 @@
-import {useLayoutEffect,useRef} from 'react';
+import {useLayoutEffect,useRef,useState} from 'react';
+import {useNavigationType,useSearchParams} from 'react-router-dom';
 
 const defaults={q:'',carrier:'',minFee:'',maxFee:'',enabled:'',sort:'carrier'};
 const sorts=['carrier','name','fee-asc','fee-desc'];
@@ -14,6 +15,31 @@ export function readPlanFilters(params) {
 }
 export function invalidPlanRange(filters) {
   return filters.minFee!==''&&filters.maxFee!==''&&Number(filters.minFee)>Number(filters.maxFee);
+}
+export function usePlanFilters() {
+  const [params,setParams]=useSearchParams(),navigationType=useNavigationType();
+  const [filters,setFilters]=useState(()=>readPlanFilters(params));
+  const latestParams=useRef(params),pendingSearch=useRef(null);
+  useLayoutEffect(()=>{
+    const search=params.toString();
+    if(pendingSearch.current===search){pendingSearch.current=null;return;}
+    if(pendingSearch.current!==null&&navigationType==='REPLACE')return;
+    pendingSearch.current=null;
+    latestParams.current=params;
+    setFilters(readPlanFilters(params));
+  },[params,navigationType]);
+  function update(patch) {
+    const next=new URLSearchParams(latestParams.current);
+    for(const [key,value] of Object.entries(patch)) {
+      if(value===defaults[key])next.delete(key);else next.set(key,value);
+    }
+    latestParams.current=next;
+    pendingSearch.current=next.toString();
+    // Keep controlled inputs synchronous; router transitions only persist the URL.
+    setFilters(readPlanFilters(next));
+    setParams(next,{replace:true});
+  }
+  return [filters,update];
 }
 export function filterPlans(rows,filters) {
   if(invalidPlanRange(filters))return [];
@@ -34,21 +60,10 @@ export function filterPlans(rows,filters) {
   });
 }
 
-export default function PlanFilters({filters,params,setParams,carriers=[],rows,count,loaded}) {
-  const latestParams=useRef(params);
-  useLayoutEffect(()=>{latestParams.current=params;},[params]);
+export default function PlanFilters({filters,update,carriers=[],rows,count,loaded}) {
   const active=Object.entries(defaults).some(([key,value])=>filters[key]!==value);
   const options=new Map(carriers.map(row=>[row.id,row.name]));
   for(const row of rows)if(row.carrier_id&&!options.has(row.carrier_id))options.set(row.carrier_id,row.carrier||'통신사 확인 필요');
-  function update(patch) {
-    // A second input can arrive before the router has rendered the preceding URL.
-    const next=new URLSearchParams(latestParams.current);
-    for(const [key,value] of Object.entries(patch)) {
-      if(value===defaults[key])next.delete(key);else next.set(key,value);
-    }
-    latestParams.current=next;
-    setParams(next,{replace:true});
-  }
   const invalid=invalidPlanRange(filters);
   return <section className="plan-filters" aria-label="요금제 필터">
     <div className="plan-filter-grid">

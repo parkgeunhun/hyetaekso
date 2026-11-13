@@ -1,5 +1,5 @@
 import { useEffect,useState } from 'react';
-import { Link,useSearchParams } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { api } from '../services/api.js';
 import { useResource } from '../hooks/data.js';
 import { Modal,Status } from '../components/common.jsx';
@@ -10,7 +10,7 @@ import { MediaPicker } from './ImageLibrary.jsx';
 import BannerTextEditor from './BannerTextEditor.jsx';
 import DocumentEditor from './DocumentEditor.jsx';
 import CopyCode,{ CopyCodeHeader } from './CopyCode.jsx';
-import PlanFilters,{readPlanFilters,filterPlans} from './PlanFilters.jsx';
+import PlanFilters,{usePlanFilters,filterPlans} from './PlanFilters.jsx';
 
 function MediaField({label,value,update,type,category}) {
   const [picker,setPicker]=useState(false);
@@ -100,8 +100,8 @@ export function Records({entity,refs,onChanged,kind,category,general,title:custo
     .map(field=>category==='service:mobility'&&field[0]==='title'?['title','차량명 또는 안내 제목']:field);
   const mediaCategory=entity==='banners'?'banner':['products','colors'].includes(entity)?'phone':category==='service:mobility'?'car':'other';
   const [form,setForm]=useState(null),[query,setQuery]=useState(''),[busy,setBusy]=useState(false),[error,setError]=useState(''),[remove,setRemove]=useState(null);
-  const [params,setParams]=useSearchParams();
-  const isPlan=entity==='plans',planFilters=readPlanFilters(params);
+  const [planFilters,updatePlanFilters]=usePlanFilters();
+  const isPlan=entity==='plans';
   const isCapacity=entity==='capacities';
   const isColor=entity==='colors';
   const primaryLabel=fields.find(([key])=>key==='name'||key==='title')?.[1]??'항목';
@@ -141,7 +141,7 @@ export function Records({entity,refs,onChanged,kind,category,general,title:custo
   }
   return <><div className="admin-head"><div><h1>{title}</h1><p>등록된 항목을 검색하고 변경할 수 있습니다.</p></div>{entity==='products'?<Link className="btn primary" to="/admin/phone-registration">휴대폰 등록</Link>:<button className="btn primary" onClick={()=>{setError('');setForm(blankFields(fields));}}>+ 새 항목</button>}</div>
     <div className="admin-panel">
-      {isPlan?<PlanFilters filters={planFilters} params={params} setParams={setParams} carriers={refs?.carriers} rows={resource.data??[]} count={records.length} loaded={Boolean(resource.data)}/>:<label>{searchLabel}<input type="search" value={query} onChange={e=>setQuery(e.target.value)}/></label>}
+      {isPlan?<PlanFilters filters={planFilters} update={updatePlanFilters} carriers={refs?.carriers} rows={resource.data??[]} count={records.length} loaded={Boolean(resource.data)}/>:<label>{searchLabel}<input type="search" value={query} onChange={e=>setQuery(e.target.value)}/></label>}
       <Status resource={resource}/>
       {isColor?<section className="phone-color-grid" aria-label="휴대폰 색상 목록">
         {records.map(item=><ColorCard key={item.id} item={item} onEdit={()=>editItem(item)} onDelete={()=>confirmDelete(item)}/>)}
